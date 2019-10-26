@@ -1,6 +1,27 @@
-CC=gcc
-FLAGS=-g
-CFILES=main.c DoQuery.c DoTCP.c DoUDP.c DHCP_GetNS.c GetRecords.c GetAnswers.c ConvertName.c ConvertToPtr.c ConvertToPtr6.c ConvertNumberToE164.c HandleNAPTRrecord.c GetName.c GetOpCode.c GetQClass.c GetQType.c GetRCode.c PrintInfoDNS.c lib.c wrappers.c dns.h
+CC := gcc
+WFLAGS := -Wall -Werror
+DEBUG := 0
+BUILD := 0.0.1
 
-orion: $(CFILES)
-	$(CC) $(FLAGS) -o orion $(CFILES)
+.PHONY: clean
+
+SOURCE_FILES := \
+	orion.c
+
+OBJECT_FILES := ${SOURCE_FILES:.c=.o}
+
+DEP_FILES := \
+	orion.h
+
+orion: $(OBJECT_FILES)
+	$(CC) $(WFLAGS) -o orion $(OBJECT_FILES)
+
+$(OBJECT_FILES): $(SOURCE_FILES) $(DEP_FILES)
+ifeq ($(DEBUG), 1)
+	$(CC) $(WFLAGS) -g -DDEBUG -c $^
+else
+	$(CC) $(WFLAGS) -c $^
+endif
+
+clean:
+	rm *.o
