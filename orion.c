@@ -1,5 +1,38 @@
 #include "orion.h"
 
+int
+convert_name(uc *qname, uc *host, size_t *len)
+{
+	int qidx = 0;
+	uc *p = NULL;
+	uc *q = NULL;
+	size_t l = strlen((char *)host);
+  
+	p = q = host;
+  
+	while (1)
+	{
+		q = memchr((char *)p, '.', l);
+
+		if (!q)
+		{
+			q = (host + len);
+			qname[qidx++] = (uc)(q - p);
+			memcpy((char *)(qname + qidx), p, (q - p));
+			qidx += (q - p);
+			break;
+		}
+
+		qname[qidx++] = (uc)(q - p);
+		memcpy((char *)(qname + qidx), p, (q - p));
+		qidx += (q - p);
+		p = ++q;
+	}
+
+	*len = strlen(qname);
+	return 0;
+}
+
 #define OFFSET_BIAS (0xc0 * 0x100)
 
 static inline off_t __label_off(uc *ptr)
