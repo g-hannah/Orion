@@ -1,5 +1,50 @@
 #include "orion.h"
 
+int
+convert_nr_e164(uc *target, *uc number, size_t *target_len)
+{
+	assert(target);
+	assert(number);
+	assert(target_len);
+
+	uc *tmp = NULL;
+	uc *e = (number + strlen(number));
+	uc *t = NULL;
+	size_t len;
+
+	if (!(tmp = (uc *)calloc_e(tmp, TMP_BUF_DEFAULT_SIZE, 1)))
+		goto fail;
+
+	numlen = strlen(number);
+	t = tmp;
+
+	while (e >= number)
+	{
+		*t++ = *e--;
+		*t++ = '.';
+	}
+
+	sprintf(t, "%s", "e164.arpa");
+
+	len = strlen(tmp);
+	memcpy(target, tmp, len);
+	*target_len = len;
+
+	free(tmp);
+	tmp = NULL;
+
+	return 0;
+
+	fail:
+	if (tmp)
+	{
+		free(tmp);
+		tmp = NULL;
+	}
+
+	return -1;
+}
+
 static sigjmp_buf __timeout;
 
 static void
