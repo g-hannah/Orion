@@ -679,7 +679,7 @@ do_tcp(uc *buf, size_t size, uc *ns)
 }
 
 int
-convert_name(uc *qname, uc *host, size_t *len)
+encode_name(uc *qname, uc *host, size_t *len)
 {
 	int qidx = 0;
 	uc *p = NULL;
