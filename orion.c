@@ -818,10 +818,8 @@ main(int argc, char *argv[])
 	int hostmax = 0;
 	int k;
 	size_t len;
-	int q_type = 0;
-	int q_class = 0;
-//	atomic_t q_type = 0;
-//	atomic_t q_class = 0;
+	int qtype = 0;
+	int qclass = 0;
 
 	if (argc == 1)
 		usage(EXIT_FAILURE);
@@ -876,12 +874,12 @@ main(int argc, char *argv[])
 					classStr[k] = tolower(classStr[k]);
 
 				if (strncmp(classStr, "in", 2) == 0)
-					q_class = 1;
+					qclass = 1;
 				else
 				if (strncmp(classStr, "chaos", 5) == 0)
-					q_class = 3;
+					qclass = 3;
 				else
-					q_class = 1;
+					qclass = 1;
 				break;
 			case(0x74):
 				len = strlen(optarg);
@@ -893,55 +891,55 @@ main(int argc, char *argv[])
 			  	  strncmp(typeStr, "aaaa", 4) != 0 &&
 			  	  strncmp(typeStr, "axfr", 4) != 0)
 			  {
-					q_type = 1;
+					qtype = 1;
 					goto __got_type;
 			  }
 				else
 				if (strncmp(typeStr, "ns", 2) == 0)
 				{
-					q_type = 2;
+					qtype = 2;
 					goto __got_type;
 				}
 				else
 				if (strncmp(typeStr, "cname", 5) == 0)
 				{
-					q_type = 5;
+					qtype = 5;
 					goto __got_type;
 				}
 				else
 				if (strncmp(typeStr, "soa", 3) == 0)
 				{
-					q_type = 6;
+					qtype = 6;
 					goto __got_type;
 				}
 				else
 				if (strncmp(typeStr, "ptr", 3) == 0)
 				{
-					q_type = 12;
+					qtype = 12;
 					goto __got_type;
 				}
 				else
 				if (strncmp(typeStr, "mx", 2) == 0)
 				{
-					q_type = 15;
+					qtype = 15;
 					goto __got_type;
 				}
 				else
 				if (strncmp(typeStr, "txt", 3) == 0)
 				{
-					q_type = 16;
+					qtype = 16;
 					goto __got_type;
 				}
 				else
 				if (strncmp(typeStr, "aaaa", 4) == 0)
 				{
-					q_type = 28;
+					qtype = 28;
 					goto __got_type;
 				}
 				else
 				if (strncmp(typeStr, "naptr", 5) == 0)
 				{
-					q_type = 35;
+					qtype = 35;
 					p = host;
 					len = strlen(argv[1]);
 
@@ -973,18 +971,18 @@ main(int argc, char *argv[])
 				else
 				if (strncmp(typeStr, "axfr", 4) == 0)
 				{
-					q_type = 252;
+					qtype = 252;
 					goto __got_type;
 				}
 				else
 				if (strncmp(typeStr, "any", 3) == 0)
 				{
-					q_type = 255;
+					qtype = 255;
 					goto __got_type;
 				}
 				else
 				{
-					q_type = 255;
+					qtype = 255;
 					goto __got_type;
 				}
 				__got_type:
@@ -1003,17 +1001,17 @@ main(int argc, char *argv[])
 		ns[strlen("127.0.1.1")] = 0;
 	}
 
-	if (q_class == 0)
-		q_class = 1;
+	if (qclass == 0)
+		qclass = 1;
 
 	if (telno == NULL)
 	{
-		if (DoQuery(host, ns, q_type, q_class) == -1)
+		if (DoQuery(host, ns, qtype, qclass) == -1)
 			goto fail;
 	}
 	else
 	{
-		if (DoQuery(telno, ns, q_type, q_class) == -1)
+		if (DoQuery(telno, ns, qtype, qclass) == -1)
 			goto fail;
 	}
 
