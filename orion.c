@@ -25,6 +25,31 @@ get_opcode(unsigned short opcode)
 	}
 }
 
+uc *
+get_qclass(unsigned short qclass)
+{
+	switch(qclass)
+	{
+		case 1:
+			return "internet";
+			break;
+		case QCLASS_CHAOS:
+			return "chaos";
+			break;
+		case QCLASS_HESIOD:
+			return "hesiod";
+			break;
+		case QCLASS_NONE:
+			return "none";
+			break;
+		case QCLASS_ALL:
+			return "all";
+			break;
+		default:
+			return "unknown";
+	}
+}
+
 int
 convert_to_ptr6(uc *out, *uc in, size_t *out_len)
 {
