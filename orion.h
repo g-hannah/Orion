@@ -28,6 +28,8 @@
 
 #define SECS_PER_WEEK (60*60*24*7)
 
+#define TMP_BUF_DEFAULT_SIZE 1024
+
 #define TTL_OK(x) ((x) < SECS_PER_WEEK)
 #define __ALIGN_SIZE(s, _s) (((s) + ((_s) - 1)) & ~((_s) - 1))
 #define __ALIGN_DEF(s) __ALIGN_SIZE(s, 16)
