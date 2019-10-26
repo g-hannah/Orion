@@ -7,9 +7,6 @@
 #include <fcntl.h>
 #include <getopt.h>
 #include <netinet/in.h>
-#include <netinet/ether.h>
-#include <net/ethernet.h>
-#include <net/if.h>
 #include <setjmp.h>
 #include <signal.h>
 #include <stdint.h>
@@ -20,6 +17,9 @@
 #include <sys/socket.h>
 #include <time.h>
 #include <unistd.h>
+
+#define DNS_PORT_NR 53
+#define DNS_MAX_TIME_WAIT 5
 
 #define LOCAL_DNS "127.0.1.1"
 #define LOCAL_DNS2 "127.0.0.1"
