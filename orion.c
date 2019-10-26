@@ -1,5 +1,30 @@
 #include "orion.h"
 
+uc *
+get_opcode(unsigned short opcode)
+{
+	switch(opcode)
+	{
+		case 0:
+			return("standard");
+			break;
+		case 1:
+			return("inverse");
+			break;
+		case 2:
+			return("status");
+			break;
+		case 4:
+			return("notify");
+			break;
+		case 5:
+			return("update");
+			break;
+		default:
+			return("unknown");
+	}
+}
+
 int
 convert_to_ptr6(uc *out, *uc in, size_t *out_len)
 {
