@@ -877,7 +877,6 @@ main(int argc, char *argv[])
 	uc *p = NULL;
 	uc *host = NULL;
 	int DNS_SRV_FL = 0;
-	int hostmax = 0;
 	int k;
 	size_t len;
 	int qtype = 0;
@@ -887,9 +886,6 @@ main(int argc, char *argv[])
 		usage(EXIT_FAILURE);
 
 	host = argv[1];
-
-	if ((hostmax = sysconf(_SC_HOST_NAME_MAX)) == 0)
-		hostmax = 256;
 
 	if (strlen(host) >= hostmax)
 	{
