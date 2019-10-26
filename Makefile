@@ -6,11 +6,13 @@ BUILD := 0.0.1
 .PHONY: clean
 
 SOURCE_FILES := \
+	cache.c \
 	orion.c
 
 OBJECT_FILES := ${SOURCE_FILES:.c=.o}
 
 DEP_FILES := \
+	cache.h \
 	orion.h
 
 orion: $(OBJECT_FILES)
