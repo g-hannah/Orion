@@ -1,5 +1,113 @@
 #include "orion.h"
 
+static sigjmp_buf __timeout;
+
+static void
+handle_timeout(int signo)
+{
+	if (signo != SIGALRM)
+		return;
+
+	siglongjmp(__timeout, 1);
+}
+
+int
+do_udp(uc *buf, size_t size, uc *ns)
+{
+	assert(buf);
+	assert(ns);
+
+	struct sockaddr_in sin;
+	struct sigaction oact;
+	struct sigaction nact;
+	ssize_t ret = 0;
+	int s;
+	time_t now;
+	struct tm *_time;
+	static char tstring[50];
+
+	clear_struct(&oact);
+	clear_struct(&nact);
+
+	nact.sa_handler = handle_timeout;
+	nact.sa_flags = 0;
+	sigemptyset(&nact.sa_mask);
+	sigaddset(&nact.sa_mask, SIGINT);
+	sigaddset(&nact.sa_mask, SIGQUIT);
+
+	if (sigaction(SIGALRM, &nact, &oact) < 0)
+	{
+		fprintf(stderr, "do_udp: failed to set signal handler for SIGALRM (%s)\n", strerror(errno));
+		goto fail;
+	}
+
+	clear_struct(&sin);
+
+	sin.sin_family = AF_INET;
+	sin.sin_port = htons(DNS_PORT_NR);
+
+	if (inet_pton(AF_INET, (char *)ns, &sin.sin_addr.s_addr) < 0)
+	{
+		fprintf(stderr, "do_udp: inet_pton error (%s)\n", strerror(errno));
+		goto fail;
+	}
+
+	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+	{
+		fprintf(stderr, "do_udp: failed to open UDP socket (%s)\n", strerror(errno));
+		goto fail;
+	}
+
+	now = time(NULL);
+	if (!(_time = localtime(&now)))
+	{
+		fprintf(stderr, "do_udp: failed to get local time (%s)\n", strerror(errno));
+		goto fail;
+	}
+
+	if (strftime(tstring, 30, "%a %d %b %Y %H:%M:%S", _time) < 0)
+	{
+		fprintf(stderr, "do_udp: failed to convert time to string format (%s)\n", strerror(errno));
+		goto fail;
+	}
+
+	fprintf(stdout, "\n\e[3;02mDNS Query (sent %s [TZ %s])\e[m\n", tstring, _time->tm_zone);
+
+	if (print_info_dns(buf, 0, getpid(), ns) == -1)
+		goto fail;
+
+	if (sendto_a(s, buf, size, 0, (struct sockaddr *)&s4, (socklen_t)sizeof(s4)) == -1)
+	{
+		fprintf(stderr, "do_udp: failed to send DNS request to server (%s)\n", strerror(errno));
+		goto fail;
+	}
+
+	if (sigsetjmp(__timeout, 1) != 0)
+	{
+		fprintf(stderr, "do_udp: timed out waiting for response\n");
+		goto fail;
+	}
+
+	alarm(DNS_MAX_TIME_WAIT);
+
+	if ((ret = recv(s, buf, 512, 0)) < 0)
+	{
+		fprintf(stderr, "do_udp: recv error (%s)\n", strerror(errno));
+		goto fail;
+	}
+
+	alarm(0);
+
+	buf[ret] = 0;
+
+	sigaction(SIGALRM, &oact, NULL);
+	return ret;
+
+	fail:
+	sigaction(SIGALRM, &oact, NULL);
+	return -1;
+}
+
 int
 convert_name(uc *qname, uc *host, size_t *len)
 {
