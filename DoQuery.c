@@ -1,32 +1,106 @@
 #include "dns.h"
+#include "cache.h"
+
+struct options
+{
+	int tcp;
+	int v6;
+};
+
+static struct options o;
+static int host_max = 0;
+
+/* Caches for different resource records */
+static cache_t answers_cache;
+static cache_t auth_cache;
+static cache_t additional_cache;
+
+static DNS_RRECORD *rrecord_ptr;
+
+static int dns_rrecord_cache_ctor(void *) __nonnull((1)) __wur;
+static void dns_rrecord_cache_dtor(void *) __nonnull((1));
+
+static void
+__attribute__((constructor)) __orion_init(void)
+{
+	if ((host_max = sysconf(_SC_HOST_NAME_MAX)) == 0)
+		host_max = 1024;
+
+	if (!(answers_cache = cache_create(
+			"answer_record_cache",
+			0,
+			sizeof(DNS_RRECORD),
+			dns_rrecord_cache_ctor,
+			dns_rrecord_cache_dtor)))
+	{
+	}
+
+	if (!(auth_cache = cache_create(
+			"authoratative_record_cache",
+			0,
+			sizeof(DNS_RRECORD),
+			dns_rrecord_cache_ctor,
+			dns_rrecord_cache_dtor)))
+	{
+	}
+
+	if (!(additional_cache = cache_create(
+			"additional_rrecord_cache",
+			0,
+			sizeof(DNS_RRECORD),
+			dns_rrecord_cache_ctor,
+			dns_rrecord_cache_dtor)))
+	{
+	}
+
+	fail:
+	exit(EXIT_FAILURE);
+}
+
+static void
+__attribute__((destructor)) __orion_fini(void)
+{
+}
+
+int
+do_query(uc *host, uc *ns, int qtype, int qclass)
+{
+	u16 tid;
+	char *buffer;
+	char *qname;
+	char *p;
+	char *e164;
+	DNS_RRECORD *answers;
+	DNS_RRECORD *auth;
+	DNS_RRECORD *additional;
+	DNS_HEADER *dns;
+	DNS_QUESTION *question;
+	struct timespec time1;
+	struct timespec time2;
+	size_t qname_len;
+	size_t tosend;
+	size_t total;
+	size_t delta;
+	double diff;
+
+	
+}
 
 ssize_t
 DoQuery(uc *host, uc *ns, _atomic_ q_type, _atomic_ q_class)
 {
-	static u16 transaction_id;
-	static uc *buf = NULL, *qname = NULL, *p = NULL, *e164 = NULL;
-	static int i, err, z, __USED_TCP = 0, hostmax = 0;
-	static DNS_RRECORD answers[20], auth[20], addit[20];
-	static DNS_HEADER *dns = NULL;
-	static DNS_QUESTION *q = NULL;
-	static struct timespec t1, t2;
-	static size_t qnamelen, tosend, trcvd, delta;
-	static double diff;
-	static int V6_PTR = 0;
-
-	if ((hostmax = sysconf(_SC_HOST_NAME_MAX)) == 0)
-		hostmax = 256;
 	if (!(buf = calloc_e(buf, BUFSIZ, sizeof(uc))))
 		goto __err;
+
 	for (z = 0; z < 20; ++z)
-	  {
+	{
 		answers[z].name = NULL;
 		answers[z].rdata = NULL;
 		auth[z].name = NULL;
 		auth[z].rdata = NULL;
 		addit[z].name = NULL;
 		addit[z].rdata = NULL;
-	  }
+	}
 
 	dns = (DNS_HEADER *)buf;
 	qname = &buf[sizeof(DNS_HEADER)];
