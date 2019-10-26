@@ -500,7 +500,7 @@ main(int argc, char *argv[])
 //	atomic_t q_class = 0;
 
 	if (argc == 1)
-		Usage();
+		usage(EXIT_FAILURE);
 
 	host = argv[1];
 
@@ -522,7 +522,7 @@ main(int argc, char *argv[])
 				STALE_OK = 1;
 				break;
 			case(0x68):
-				Usage();
+				usage(EXIT_SUCCESS);
 				break;
 			case(0x44):
 				if (DHCP_GetNS(ns) == -1)
@@ -666,10 +666,10 @@ main(int argc, char *argv[])
 				__got_type:
 				break;
 			case(0x3f):
-				Usage();
+				usage(EXIT_FAILURE);
 				break;
 			default:
-				Usage();
+				usage(EXIT_FAILURE);
 		}
 	}
 
