@@ -502,6 +502,130 @@ do_udp(uc *buf, size_t size, uc *ns)
 	return -1;
 }
 
+static sigjmp_buf __timeout_tcp;
+
+static void
+handle_timeout_tcp(int signo)
+{
+	if (signo != SIGALRM)
+		return;
+
+	siglongjmp(__timeout_tcp, 1);
+}
+
+int
+do_tcp(uc *buf, size_t size, uc *ns)
+{
+	assert(buf);
+	assert(ns);
+
+	struct sockaddr_in sin;
+	struct sigaction oact;
+	struct sigaction nact;
+	ssize_t ret = 0;
+	int s;
+	time_t now;
+	struct tm *_time;
+	static char tstring[50];
+
+	clear_struct(&oact);
+	clear_struct(&nact);
+
+	nact.sa_handler = handle_timeout_tcp;
+	nact.sa_flags = 0;
+	sigemptyset(&nact.sa_mask);
+	sigaddset(&nact.sa_mask, SIGINT);
+	sigaddset(&nact.sa_mask, SIGQUIT);
+
+	if (sigaction(SIGALRM, &nact, &oact) < 0)
+	{
+		fprintf(stderr, "do_tcp: failed to set signal handler for SIGALRM (%s)\n", strerror(errno));
+		goto fail;
+	}
+
+	clear_struct(&sin);
+
+	sin.sin_family = AF_INET;
+	sin.sin_port = htons(DNS_PORT_NR);
+
+	if (inet_pton(AF_INET, ns, &sin.sin_addr.s_addr) < 0)
+	{
+		fprintf(stderr, "do_tcp: inet_pton error (%s)\n", strerror(errno));
+		goto fail;
+	}
+
+	if ((s = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+	{
+		fprintf(stderr, "do_tcp: failed to open TCP socket (%s)\n", strerror(errno));
+		goto fail;
+	}
+
+	if (sigsetjmp(__timeout_tcp, 0) != 0)
+	{
+		fprintf(stderr, "do_tcp: timed out waiting for response\n");
+		goto fail;
+	}
+
+	alarm(DNS_MAX_TIME_WAIT);
+
+	if (connect(s, (struct sockaddr *)&sin, (socklen_t)sizeof(sin)) != 0)
+	{
+		alarm(0);
+		fprintf(stderr, "do_tcp: failed to connect to DNS server (%s)\n", strerror(errno));
+		goto fail;
+	}
+
+	alarm(0);
+
+	now = time(NULL);
+
+	if ((_time = localtime(&seed)) == NULL)
+	{
+		fprintf(stderr, "do_tcp: failed to get local time (%s)\n", strerror(errno));
+		goto fail;
+	}
+
+	if (strftime(tstring, 30, "%a %d %b %Y %H:%M:%S", _time) < 0)
+	{
+		fprintf(stderr, "do_tcp: failed to convert local time to string format (%s)\n", strerror(errno));
+		goto fail;
+	}
+
+	fprintf(stdout, "\n\e[3;02mDNS Query (sent %s [TZ %s])\e[m\n", tstring, _time->tm_zone);
+
+	if (print_info_dns(buf, 0, getpid(), ns) == -1)
+		goto fail;
+
+	if ((ret = send_a(s, buf, size, 0)) == -1)
+	{
+		fprintf(stderr, "do_tcp: send_a error (%s)\n", strerror(errno));
+		goto fail;
+	}
+
+	alarm(DNS_MAX_TIME_WAIT);
+
+	if ((ret = recv_a(s, buf, BUFSIZ, 0)) == -1)
+	{
+		alarm(0);
+		fprintf(stderr, "do_tcp: recv_a error (%s)\n", strerror(errno));
+		goto fail;
+	}
+
+	alarm(0);
+
+	shutdown(s, SHUT_RDWR);
+	close(s);
+	s = -1;
+
+	buf[ret] = 0;
+
+	return ret;
+
+	fail:
+
+	return -1;
+}
+
 int
 convert_name(uc *qname, uc *host, size_t *len)
 {
