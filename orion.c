@@ -1,6 +1,111 @@
 #include "orion.h"
 
 int
+convert_to_ptr6(uc *out, *uc in, size_t *out_len)
+{
+	assert(out);
+	assert(in);
+	assert(out_len);
+
+	uc *tmp = NULL;
+	uc *p1 = NULL;
+	uc *p2 = NULL;
+	uc *t = NULL;
+	uc *e;
+	int k;
+	size_t len;
+
+	if (!(tmp = (uc *)calloc_e(tmp, TMP_BUF_DEFAULT_SIZE, sizeof(uc))))
+		goto fail;
+
+	len = strlen((char *)in);
+	e = (in + len);
+	k = 0;
+
+	/*
+	 * 2a03:2880:f12a:183:face:b00c:0:25de
+	 *                ^             ^
+	 *
+	 * add in zeros where needed
+	 */
+	p1 = p2 = in;
+	t = tmp;
+
+	while (1)
+	{
+		k = 0;
+
+		p1 = memchr(p1, ':', (e - p1));
+
+		if (p1 == e && p2 == e)
+			break;
+
+		if ((p1 - p2) < 4)
+		{
+			while (k < (4 - (p1 - p2)))
+			{
+				*t++ = '0';
+				++k;
+			}
+
+			while (p2 != p1)
+				*t++ = *p2++;
+
+			if (p1 != e)
+			{
+				*t++ = *p1++;
+				++p2;
+			}
+		}
+		else
+		{
+			while (p2 != p1)
+				*t++ = *p2++;
+
+			if (p1 != e)
+			{
+				*t++ = *p1++;
+				++p2;
+			}
+		}
+	}
+	
+	*t = 0;
+	*out_len = strlen((char *)tmp);
+	--t;
+
+	p1 = out;
+	while (t >= tmp)
+	{
+		if (*t == ':')
+			--t;
+		*p1++ = *t--;
+		*p1++ = 0x01;
+	}
+
+	t = tmp;
+
+	memcpy(p1, "ip6.arpa.", 9);
+
+	p1 += 9;
+	*p1 = 0;
+
+	free(tmp);
+	tmp = NULL;
+
+	return 0;
+
+	fail:
+	if (tmp)
+	{
+		free(tmp);
+		tmp = NULL;
+	}
+
+	return -1;
+}
+
+int
 convert_nr_e164(uc *target, *uc number, size_t *target_len)
 {
 	assert(target);
