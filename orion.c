@@ -11,9 +11,9 @@ static struct options o;
 static int host_max = 0;
 
 /* Caches for different resource records */
-static cache_t answers_cache;
-static cache_t auth_cache;
-static cache_t additional_cache;
+static cache_t *answers_cache;
+static cache_t *auth_cache;
+static cache_t *additional_cache;
 
 static DNS_RRECORD *rrecord_ptr;
 
@@ -33,6 +33,8 @@ __attribute__((constructor)) __orion_init(void)
 			dns_rrecord_cache_ctor,
 			dns_rrecord_cache_dtor)))
 	{
+		fprintf(stderr, "__orion_init: failed to create resource record object cache\n");
+		goto fail;
 	}
 
 	if (!(auth_cache = cache_create(
@@ -42,6 +44,8 @@ __attribute__((constructor)) __orion_init(void)
 			dns_rrecord_cache_ctor,
 			dns_rrecord_cache_dtor)))
 	{
+		fprintf(stderr, "__orion_init: failed to create resource record object cache\n");
+		goto fail;
 	}
 
 	if (!(additional_cache = cache_create(
@@ -51,7 +55,11 @@ __attribute__((constructor)) __orion_init(void)
 			dns_rrecord_cache_ctor,
 			dns_rrecord_cache_dtor)))
 	{
+		fprintf(stderr, "__orion_init: failed to create resource record object cache\n");
+		goto fail;
 	}
+
+	return;
 
 	fail:
 	exit(EXIT_FAILURE);
@@ -60,6 +68,14 @@ __attribute__((constructor)) __orion_init(void)
 static void
 __attribute__((destructor)) __orion_fini(void)
 {
+	cache_clear_all(answers_cache);
+	cache_destroy(answers_cache);
+	cache_clear_all(auth_cache);
+	cache_destroy(auth_cache);
+	cache_clear_all(additional_cache);
+	cache_destroy(additional_cache);
+
+	return;
 }
 
 uc *
