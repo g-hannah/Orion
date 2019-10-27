@@ -357,16 +357,16 @@ get_qclass(unsigned short qclass)
 		case 1:
 			return "internet";
 			break;
-		case QCLASS_CHAOS:
+		case DNS_QCLASS_CHAOS:
 			return "chaos";
 			break;
-		case QCLASS_HESIOD:
+		case DNS_QCLASS_HESIOD:
 			return "hesiod";
 			break;
-		case QCLASS_NONE:
+		case DNS_QCLASS_NONE:
 			return "none";
 			break;
-		case QCLASS_ALL:
+		case DNS_QCLASS_ALL:
 			return "all";
 			break;
 		default:
@@ -491,7 +491,6 @@ convert_nr_e164(char *target, char *number, size_t *target_len)
 
 	char *e = (number + strlen(number));
 	char *t = NULL;
-	size_t len;
 	buf_t tmp;
 
 	if (buf_init(&tmp, TMP_BUF_DEFAULT_SIZE) < 0)
@@ -502,15 +501,15 @@ convert_nr_e164(char *target, char *number, size_t *target_len)
 
 	while (e >= number)
 	{
-		*t++ = *e--;
-		*t++ = '.';
+		buf_append(&tmp, e, 1);
+		buf_append(&tmp, ".");
+		--e;
 	}
 
-	sprintf(t, "%s", "e164.arpa");
+	buf_append(&tmp, "e164.arpa");
 
-	len = strlen(tmp);
-	memcpy(target, tmp, len);
-	*target_len = len;
+	memcpy(target, tmp.buf_head, tmp.data_len);
+	*target_len = tmp.data_len;
 
 	buf_destroy(&tmp);
 	return 0;
@@ -611,8 +610,9 @@ do_udp(uc *buf, size_t size, uc *ns)
 
 	alarm(DNS_MAX_TIME_WAIT);
 
-	if ((ret = recv(s, buf, 512, 0)) < 0)
+	if ((ret = recv(s, buf, DNS_MAX_UDP_SIZE, 0)) < 0)
 	{
+		alarm(0);
 		fprintf(stderr, "do_udp: recv error (%s)\n", strerror(errno));
 		goto fail;
 	}
@@ -786,11 +786,9 @@ encode_name(uc *qname, uc *host, size_t *len)
 	return 0;
 }
 
-#define OFFSET_BIAS (0xc0 * 0x100)
-
 static inline off_t __label_off(uc *ptr)
 {
-	return ((*ptr * 0x100) + *(ptr + 1) - OFFSET_BIAS);
+	return ((*ptr * 0x100) + *(ptr + 1) - DNS_LABEL_OFFSET_BIAS);
 }
 
 int
