@@ -375,6 +375,74 @@ get_qclass(unsigned short qclass)
 }
 
 int
+print_info_dns(char *ptr, int flag, u16 tid, char *ns)
+{
+	assert(ptr);
+	assert(ns);
+
+	DNS_HEADER *d = NULL;
+	DNS_QUESTION *q = NULL;
+	char *p;
+	int ok = 0;
+
+	d = (DNS_HEADER *)ptr;
+	p = (d + sizeof(DNS_HEADER));
+
+	fprintf(stdout,
+		"Questions %hu | Answers %hu | Authoritative %hu | Additional %hu\n",
+		ntohs(d->qdcnt),
+		ntohs(d->ancnt),
+		ntohs(d->nscnt),
+		ntohs(d->arcnt));
+
+	fprintf(stdout, "  Query \"");
+
+	if (!isdigit(*p) && !isalpha(*p))
+		++p;
+
+	while (*p != 0)
+	{
+		if (!isdigit(*p) && !isalpha(*p) && *p != 0x2d)
+		{
+			putchar('.');
+			++p;
+		}
+
+		putchar(*p++);
+	}
+
+	fprintf(sdtout, "\" @SERVER %s:53\n", ns);
+	++p;
+
+	q = (DNS_QUESTION *)p;
+
+	if (ntohs(d->ident) == tid)
+		ok = 1;
+
+	fprintf(stdout,
+		"  Transaction ID 0x%hx %s\n",
+		ntohs(d->ident),
+		(flag?(ok?"\e[1;02m[\e[1;32mVALID\e[m\e[1;02m]\e[m":"\e[1;02m[\e[1;31mINVALID\e[m\e[1;02m]\e[m"):""));
+
+	fprintf(stdout,
+		"  FLAGS: %s %s %s %s %s %s %s  QTYPE: %s  QCLASS: %s  STATUS: %s\r\n",
+		d->qr?"qr":"",
+		d->aa?"aa":"",
+		d->tc?"tc":"",
+		d->rd?"rd":"",
+		d->ra?"ra":"",
+		d->ad?"ad":"",
+		d->cd?"cd":"",
+		get_qtype(ntohs(q->qtype)),
+		get_qclass(ntohs(q->qclass)),
+		get_rcode(d->rcode));
+
+	putchar('\n');
+
+	return 0;
+}
+
+int
 encode_name(char *qname, char *host, size_t *len)
 {
 	int qidx = 0;
