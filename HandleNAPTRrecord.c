@@ -1,56 +1,53 @@
 #include "dns.h"
 
-ssize_t
-HandleNAPTRrecord(DNS_RRECORD *record)
+int
+handle_nptr_record(DNS_RRECORD *record)
 {
-	if (record == NULL)
-	  {
-		fprintf(stderr, "\e[3;31mHandleNAPTRrecord: record is NULL\e[m\r\n");
-		errno = EINVAL;
-		return(-1);
-	  }
+	assert(record);
 
-	static uc *p = NULL, *name = NULL;
-	static size_t len, delta;
-	static int hostmax;
-	static NAPTR_DATA *naptr = NULL;
+	char *p;
+	char *name;
+	size_t len, delta;
+	int hostmax;
+	NAPTR_DATA *naptr = NULL;
 
 	naptr = (NAPTR_DATA *)record->rdata;
+
 	len = ntohs(record->resource->len);
-	printf("\e[3;02mNAPTR record\e[m\r\n\r\n");
+	fprintf(stdout, "\e[3;02mNAPTR record\e[m\n\n");
 	p = record->name;
-	printf("\e[3;02mnumber\e[m ");
-	while (*p != 0 && (void *)p < (void *)(record + len))
-		putchar(*p++);
-	printf("\r\n");
-	printf("\e[3;02morder\e[m %hu\r\n", ntohs(naptr->order));
-	printf("\e[3;02mpreference\e[m %hu\r\n", ntohs(naptr->pref));
-	printf("\e[3;02mservices\e[m ");
-	p = naptr->services;
-	while (*p != 0 && (void *)p < (void *)(record + len))
-		putchar(*p++);
-	printf("\r\n");
-	printf("\e[3;02mregex\e[m ");
-	p = naptr->regex;
-	while (*p != 0 && (void *)p < (void *)(record + len))
-		putchar(*p++);
-	printf("\r\n");
+	fprintf(stdout, "\e[3;02mnumber\e[m ");
+	fprintf(stdout, "%.*s\n", (int)len, p);
+
+	fprintf(stdout, "\e[3;02morder\e[m %hu\n", ntohs(naptr->order));
+	fprintf(stdout, "\e[3;02mpreference\e[m %hu\n", ntohs(naptr->pref));
+	fprintf(stdout, "\e[3;02mservices\e[m %s\n", naptr->services);
+	fprintf(stdout, "%s\n", naptr->services);
+	fprintf(stdout, "\e[3;02mregex\e[m %s\n", naptr->regex);
 	p = naptr->replace;
-	if ((hostmax = sysconf(_SC_HOST_NAME_MAX)) == 0)
-		hostmax = 256;
-	if (!(name = (uc *)calloc_e((uc *)name, hostmax, sizeof(uc))))
-		goto __err;
+
+	if (!(name = calloc_e(name, hostmax, sizeof(uc))))
+		goto fail;
+
 	delta = 0;
-	if (GetName(p, record->rdata, name, &delta) == -1)
-		{ perror("HandleNAPTRrecord: GetName"); goto __err; }
+	if (get_name(p, record->rdata, name, &delta) < 0)
+		goto fail;
+
 	p += delta;
-	printf("\e[3;02mreplacement\e[m %s", name);
+	fprintf(stdout, "\e[3;02mreplacement\e[m %s\n", name);
 
+	free(name);
+	name = NULL;
 
-	if (name != NULL) free(name);
-	return(0);
+	return 0;
 
-	__err:
-	if (name != NULL) free(name);
-	return(-1);
+	fail:
+
+	if (name)
+	{
+		free(name);
+		name = NULL;
+	}
+
+	return -1;
 }
