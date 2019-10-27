@@ -359,21 +359,21 @@ get_qclass(unsigned short qclass)
 }
 
 int
-convert_to_ptr6(uc *out, *uc in, size_t *out_len)
+convert_to_ptr6(char *out, char *in, size_t *out_len)
 {
 	assert(out);
 	assert(in);
 	assert(out_len);
 
-	uc *tmp = NULL;
-	uc *p1 = NULL;
-	uc *p2 = NULL;
-	uc *t = NULL;
-	uc *e;
 	int k;
+	char *p1;
+	char *p2;
+	char *t;
+	char *e;
+	buf_t tmp;
 	size_t len;
 
-	if (!(tmp = (uc *)calloc_e(tmp, TMP_BUF_DEFAULT_SIZE, sizeof(uc))))
+	if (buf_init(&tmp, TMP_BUF_DEFAULT_SIZE) < 0)
 		goto fail;
 
 	len = strlen((char *)in);
@@ -402,27 +402,36 @@ convert_to_ptr6(uc *out, *uc in, size_t *out_len)
 		{
 			while (k < (4 - (p1 - p2)))
 			{
-				*t++ = '0';
+				buf_append(&tmp, "0");
+				//*t++ = '0';
 				++k;
 			}
 
 			while (p2 != p1)
-				*t++ = *p2++;
+			{
+				buf_append_ex(&tmp, p2, 1);
+				//*t++ = *p2++;
+			}
 
 			if (p1 != e)
 			{
-				*t++ = *p1++;
+				buf_append_ex(&tmp, p1, 1);
+				//*t++ = *p1++;
 				++p2;
 			}
 		}
 		else
 		{
 			while (p2 != p1)
-				*t++ = *p2++;
+			{
+				buf_append_ex(&tmp, p2, 1);
+				//*t++ = *p2++;
+			}
 
 			if (p1 != e)
 			{
-				*t++ = *p1++;
+				buf_append_ex(&tmp, p1, 1);
+				//*t++ = *p1++;
 				++p2;
 			}
 		}
@@ -448,34 +457,28 @@ convert_to_ptr6(uc *out, *uc in, size_t *out_len)
 	p1 += 9;
 	*p1 = 0;
 
-	free(tmp);
-	tmp = NULL;
-
+	buf_destroy(&tmp);
 	return 0;
 
 	fail:
-	if (tmp)
-	{
-		free(tmp);
-		tmp = NULL;
-	}
+	buf_destroy(&tmp);
 
 	return -1;
 }
 
 int
-convert_nr_e164(uc *target, *uc number, size_t *target_len)
+convert_nr_e164(char *target, char *number, size_t *target_len)
 {
 	assert(target);
 	assert(number);
 	assert(target_len);
 
-	uc *tmp = NULL;
-	uc *e = (number + strlen(number));
-	uc *t = NULL;
+	char *e = (number + strlen(number));
+	char *t = NULL;
 	size_t len;
+	buf_t tmp;
 
-	if (!(tmp = (uc *)calloc_e(tmp, TMP_BUF_DEFAULT_SIZE, 1)))
+	if (buf_init(&tmp, TMP_BUF_DEFAULT_SIZE) < 0)
 		goto fail;
 
 	numlen = strlen(number);
@@ -493,18 +496,12 @@ convert_nr_e164(uc *target, *uc number, size_t *target_len)
 	memcpy(target, tmp, len);
 	*target_len = len;
 
-	free(tmp);
-	tmp = NULL;
-
+	buf_destroy(&tmp);
 	return 0;
 
 	fail:
-	if (tmp)
-	{
-		free(tmp);
-		tmp = NULL;
-	}
 
+	buf_destroy(&tmp);
 	return -1;
 }
 
@@ -781,7 +778,7 @@ static inline off_t __label_off(uc *ptr)
 }
 
 int
-decode_name(uc *rcvd, uc *buf, uc *target, size_t *delta)
+decode_name(char *cur_pos, char *in, buf_t *out, size_t *delta)
 {
 	assert(rcvd);
 	assert(buf);
@@ -792,47 +789,53 @@ decode_name(uc *rcvd, uc *buf, uc *target, size_t *delta)
 	size_t len;
 	size_t __delta = 0;
 	off_t off;
-	uc *start = NULL;
-	uc *p = NULL;
+	char *p;
 	int jflag = 0;
 
-/* blah3com0blahblahblahblahblahblahblah3www6google[192][4] */
+/*
+ * E.g., (B == octet of data)
+ *
+ * BBBB5orion2co2ukBBBBBBBBBBBBBBBBBBBB3www9astronomy[>=192][4]
+ *
+ * After www.astronomy, the offset to the desired label from
+ * the start of the received data is encoded in the next two bytes
+ * if the next immediate octet is >= 192.
+ */
 
-	start = (uc *)rcvd;
-	offset = 0;
+	buf_clear(out);
 
-	for (p = (uc *)rcvd; *p != 0; ++p)
+	for (p = cur_pos; *p != 0; ++p)
 	{
-		if (*p >= 0xc0)
+		if ((unsigned char)*p >= 0xc0)
 		{
 			off = __label_off(p);
-			p = (uc *)(buf + off);
+			p = (in + off);
 			jflag = 1;
 			off = 0;
 		}
 
-		target[len++] = *p;
+		buf_append_ex(out, p, 1);
 
 		if (!jflag)
 			++__delta;
 	}
 
 	if (jflag)
+		p = (cur_pos + __delta + 1);
+
+	++p;
+
+/*
+ * Replace the encoded label lengths with '.'
+ */
+	buf_collapse(out, (off_t)0, (size_t)1);
+	for (i = 0; i < out->data_len; ++i)
 	{
-		p = (start + __delta);
-		++p;
+		if (!isascii(out->buf_head[i]))
+			out->buf_head[i] = '.';
 	}
 
-	for (i = 0; i < (len - 1); ++i)
-	{
-		target[i] = target[i+1];
-
-		if (!isascii(target[i]))
-			target[i] = '.';
-	}
-
-	target[--len] = 0;
-	*delta = (p - start);
+	*delta = (p - cur_pos);
 
 #if 0
 	for (p = (uc *)rcvd; *p != 0; ++p)
@@ -864,6 +867,294 @@ decode_name(uc *rcvd, uc *buf, uc *target, size_t *delta)
 #endif
 
 	return 0;
+}
+
+int
+get_records(cache_t *cachep, u16 cnt, char *ptr, char *buf, size_t size, size_t *delta)
+{
+	int i;
+	char *p;
+
+	*delta = 0;
+	p = ptr;
+
+	for (i = 0; i < cnt; ++i)
+	{
+		if (!(rrecord_ptr = (DNS_RRECORD *)cache_alloc(cachep, &rrecord_ptr)))
+		{
+			fprintf(stderr, "get_records: failed to allocate resource record cache object\n");
+			goto fail;
+		}
+
+		if (get_name(p, buf, rrecord_ptr->name, delta) < 0)
+			goto fail;
+
+		p += *delta;
+
+		memcpy(rrecord_ptr->resource, p, sizeof(DNS_RDATA));
+
+		p += sizeof(DNS_RDATA);
+
+		memcpy(rrecord_ptr->rdata, p, ntohs(rrecord_ptr->resource->len));
+
+		p += ntohs(rrecord_ptr->resource->len);
+	}
+
+	*delta = (p - ptr);
+	return 0;
+
+	fail:
+	return -1;
+}
+
+int
+print_answers(cache_t *cachep, u16 cnt, char *buf, int qtype)
+{
+	int i;
+	buf_t tmp;
+	buf_t domain;
+	buf_t mx;
+	struct in_addr *inet;
+	struct in6_addr *inet6;
+	static char inet6_str[INET6_ADDRSTRLEN];
+	char *inet_str;
+	u16 *a16;
+	u16 pref;
+	u16 type;
+	u32 serial;
+	u32 refresh;
+	u32 retry;
+	u32 expire;
+	u32 min;
+	u32 *a32;
+	char *p;
+	size_t delta;
+
+	if (buf_init(&tmp, hostmax) < 0)
+		goto fail;
+	if (buf_init(&domain, hostmax) < 0)
+		goto fail_release_bufs;
+	if (buf_init(&mx, hostmax) < 0)
+		goto fail_release_bufs;
+
+	DNS_RRECORD *r = (DNS_RRECORD *)cachep->cache;
+
+	for (i = 0; i < cnt; ++i)
+	{
+		if (!TTL_OK(ntohl(r->resource->ttl)))
+		{
+			if (!STALE_OK)
+			{
+				fprintf(stdout, "%sResource record is stale (ttl: %u)%s\n",
+					ntohl(r->resource->ttl));
+
+				continue;
+			}
+		}
+
+		type = ntohs(r->resource->type);
+		switch(type)
+		{
+			case 1: /* IP address */
+				if (3 == r->resource->_class)
+				{
+					p = r->rdata;
+					if (get_name(p, buf, &tmp, &delta) < 0)
+						goto fail;
+
+					p += delta;
+
+					a16 = (u16 *)p;
+					fprintf(stdout,
+						"%s%18s%s %s [%u]\n"
+						"%18s %0o\n",
+						"Chaos Name",
+						tmp.buf_head,
+						ntohl(r->resource->ttl),
+						"Chaos Address",
+						*a16);
+
+					p += sizeof(u16);
+				}
+				else
+				{
+					p = r->rdata;
+					inet = (struct in_addr *)p;
+					fprintf(stdout,
+						"%s%18s%s %s [%u]\n",
+						"IPv4 Address",
+						inet_ntoa(*inet),
+						ntohs(r->resource->ttl));
+				}
+				break;
+			case 2:
+				p = r->rdata;
+
+				if (get_name(p, buf, &tmp, &delta) < 0)
+					goto fail;
+
+				p += delta;
+
+				fprintf(stdout,
+						"%s%18s%s %s [%u]\n",
+						"Name Server",
+						tmp.buf_head,
+						ntohs(r->resource->ttl));
+
+				break;
+			case 5:
+				p = r->rdata;
+
+				if (get_name(p, buf, &tmp, &delta) < 0)
+					goto fail;
+
+				p += delta;
+
+				fprintf(stdout,
+						"%s%18s%s %s [%u]\n",
+						"Canonical Name",
+						tmp.buf_head,
+						ntohl(r->resource->ttl));
+
+				break;
+			case 6:
+				p = r->rdata;
+
+				if (get_name(p, buf, &domain, &delta) < 0)
+					goto fail;
+
+				p += delta;
+
+				if (get_name(p, buf, &mx, &delta) < 0)
+					goto fail;
+
+				serial = ntohl(*((u32 *)p));
+				p += sizeof(u32);
+
+				refresh = ntohl(*((u32 *)p));
+				p += sizeof(u32);
+
+				retry = ntohl(*((u32 *)p));
+				p += sizeof(u32);
+
+				expire = ntohl(*((u32 *)p));
+				p += sizeof(u32);
+
+				min = ntohl(*((u32 *)p));
+				p += sizeof(u32);
+
+				fprintf(stdout,
+						"%s%18s%s %s\n"
+						"%s%18s%s %s\n"
+						"%s%18s%s %u\n"
+						"%s%18s%s %d\n"
+						"%s%18s%s %d\n"
+						"%s%18s%s %d\n"
+						"%s%18s%s %d\n"
+						"%s%18s%s %u\n",
+						COL_GREEN, "domain", COL_END, domain.buf_head,
+						COL_GREEN, "mail", COL_END, mx.buf_head,
+						COL_GREEN, "S#", COL_END, serial,
+						COL_GREEN, "REFR", COL_END, refresh,
+						COL_GREEN, "RETR", COL_END, retry,
+						COL_GREEN, "EXP", COL_END, expire,
+						COL_GREEN, "MIN", COL_END, min,
+						COL_GREEN, "TTL", COL_END, ntohl(r->resource->ttl));
+
+				break;
+			case 12:
+				p = r->rdata;
+
+				if (get_name(p, buf, &tmp, &delta) < 0)
+					goto fail;
+
+				p += delta;
+
+				fprintf(stdout,
+						"%s%18s%s %s [%u]\n",
+						COL_GREEN, "Pointer", COL_END, tmp.buf_head, ntohl(r->resource->ttl));
+
+				break;
+			case 15: /* Mail Exchange Record */
+				p = r->rdata;
+
+				pref = ntohs(*((u16 *)p));
+				p += sizeof(u16);
+
+				if (get_name(p, buf, &mx, &delta) < 0)
+					goto fail;
+
+				p += delta;
+
+				fprintf(stdout,
+						"%s%18s%s %s (pref: %hu) [%u]\n",
+						COL_GREEN, "Mail Exchange", COL_END, mx.buf_head, pref, ntohl(r->resource->ttl));
+
+				break;
+			case 16: /* Text Record */
+			printf("\e[3;02m%s\e[m\r\n", "Txt Record");
+			p = ans_array[k].rdata;
+			while (p < (ans_array[k].rdata + ntohs(ans_array[k].resource->len)))
+			  {
+				if (iscntrl(*p) && *p != '\r' && *p != '\n')
+					++p;
+				putchar(*p++);
+			  } 
+			putchar('\n');
+			free(ans_array[k].name); free(ans_array[k].rdata);
+			ans_array[k].name = NULL; ans_array[k].rdata = NULL;
+			break;
+			case(28): /* AAAA record (ipv6) */
+			p = ans_array[k].rdata;
+			a128 = (struct in6_addr *)p;
+			if (! inet_ntop(AF_INET6, &a128->s6_addr, a128_str, INET6_ADDRSTRLEN))
+				{ perror("GetAnswers: inet_ntop"); goto __err; }
+			p += ntohs(ans_array[k].resource->len);
+			printf("\e[3;02m%18s\e[m %s [%u]\r\n",
+				"IPv6 Address",
+				a128_str,
+				ntohl(ans_array[k].resource->ttl));
+			break;
+			case(35): /* NAPTR record */
+			if (HandleNAPTRrecord(&ans_array[k]) == -1)
+				{ perror("GetAnswers: HandleNAPTRrecord"); goto __err; }
+			break;
+			case(252): /* AXFR record */
+			/*TODO*/
+			break;
+			case(256): /* URI record */
+			p = ans_array[k].rdata;
+			if (GetName(p, buf, string, &delta) == -1)
+				goto __err;
+			p += delta;
+			printf("\e[3;02m%18s\e[m %s [%u]\r\n", 
+				"URI",
+				string,
+				ntohl(ans_array[k].resource->ttl));
+			break;
+			default:
+			if (ans_array[k].name != NULL) free(ans_array[k].name);
+			if (ans_array[k].rdata != NULL) free(ans_array[k].rdata);
+			ans_array[k].name = NULL; ans_array[k].rdata = NULL;
+			goto __err;
+		  }
+	  }
+
+	buf_destroy(&tmp);
+	buf_destroy(&domain);
+	buf_destroy(&mx);
+	
+	cache_clear_all(cachep);
+	return 0;
+
+	fail_release_bufs:
+	buf_destroy(&tmp);
+	buf_destroy(&domain);
+	buf_destroy(&mx);
+
+	fail:
+
+	return -1;
 }
 
 int
