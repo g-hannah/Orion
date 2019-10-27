@@ -281,46 +281,46 @@ get_qtype(unsigned short qtype)
 void
 DieSys(const char const *EMsg)
 {
-	fprintf(stderr, "\e[1;02m\e[3;31m%s - %s\e[m\r\n", EMsg, strerror(errno));
+	fprintf(stderr, "\e[1;02m\e[3;31m%s - %s\e[m\n", EMsg, strerror(errno));
 	exit(EXIT_FAILURE);
 }
 
 void
 usage(int exit_status)
 {
-	fprintf(stderr, "usage: orion <hostname> [OPTIONS]\r\n"
-			"  -D	send DHCP request to find local DNS server(s)\r\n"
-			"  -S	specify DNS server [default is 127.0.1.1]\r\n"
-			"  -t	specify the type of query:\r\n"
-			"		A	IPv4 address\r\n"
-			"		AAAA	IPv6 address\r\n"
-			"		PTR	convert IPv4/IPv6 address to name\r\n"
-			"		NAPTR	find SIP URI for telephone number\r\n"
-			"		MX	mail exchange information\r\n"
-			"		TXT	server text file information\r\n"
-			"		SOA	zone authority information\r\n"
-			"		NS	name server information\r\n"
-			"		AXFR	request transfer of zone information\r\n"
-			"  -x	accept resource records with stale time-to-live\r\n"
-			"\r\n"
-			"\r\n"
-			"Examples:\r\n"
-			"\r\n"
-			"orion example.com -t AAAA -S 8.8.8.8\r\n"
-			"	finds IPv6 address for \"example.com\"\r\n"
-			"	using Google's DNS server at 8.8.8.8#53\r\n"
-			"\r\n"
-			"orion +447123456789 -t NAPTR\r\n"
-			"	finds SIP URI for +447123456789\r\n"
-			"	using default DNS resolver at 127.0.1.1#53\r\n"
-			"\r\n"
-			"orion example.com -t AAAA -D\r\n"
-			"	finds IPv6 address for \"example.com\"\r\n"
-			"	using DNS server found via DHCP request\r\n"
-			"\r\n"
-			"orion example.com -t NS -x\r\n"
-			"	finds name server for \"example.com\" and\r\n"
-			"	accepts records with stale time-to-live values\r\n");
+	fprintf(stderr, "usage: orion <hostname> [OPTIONS]\n"
+			"  -D	send DHCP request to find local DNS server(s)\n"
+			"  -S	specify DNS server [default is 127.0.1.1]\n"
+			"  -t	specify the type of query:\n"
+			"		A	IPv4 address\n"
+			"		AAAA	IPv6 address\n"
+			"		PTR	convert IPv4/IPv6 address to name\n"
+			"		NAPTR	find SIP URI for telephone number\n"
+			"		MX	mail exchange information\n"
+			"		TXT	server text file information\n"
+			"		SOA	zone authority information\n"
+			"		NS	name server information\n"
+			"		AXFR	request transfer of zone information\n"
+			"  -x	accept resource records with stale time-to-live\n"
+			"\n"
+			"\n"
+			"Examples:\n"
+			"\n"
+			"orion example.com -t AAAA -S 8.8.8.8\n"
+			"	finds IPv6 address for \"example.com\"\n"
+			"	using Google's DNS server at 8.8.8.8#53\n"
+			"\n"
+			"orion +447123456789 -t NAPTR\n"
+			"	finds SIP URI for +447123456789\n"
+			"	using default DNS resolver at 127.0.1.1#53\n"
+			"\n"
+			"orion example.com -t AAAA -D\n"
+			"	finds IPv6 address for \"example.com\"\n"
+			"	using DNS server found via DHCP request\n"
+			"\n"
+			"orion example.com -t NS -x\n"
+			"	finds name server for \"example.com\" and\n"
+			"	accepts records with stale time-to-live values\n");
 	exit(exit_status);
 }
 
@@ -1108,7 +1108,7 @@ print_answers(cache_t *cachep, u16 cnt, char *buf, int qtype)
 
 				break;
 			case 16: /* Text Record */
-			printf("\e[3;02m%s\e[m\r\n", "Txt Record");
+			printf("\e[3;02m%s\e[m\n", "Txt Record");
 			p = ans_array[k].rdata;
 			while (p < (ans_array[k].rdata + ntohs(ans_array[k].resource->len)))
 			  {
@@ -1126,7 +1126,7 @@ print_answers(cache_t *cachep, u16 cnt, char *buf, int qtype)
 			if (! inet_ntop(AF_INET6, &a128->s6_addr, a128_str, INET6_ADDRSTRLEN))
 				{ perror("GetAnswers: inet_ntop"); goto __err; }
 			p += ntohs(ans_array[k].resource->len);
-			printf("\e[3;02m%18s\e[m %s [%u]\r\n",
+			printf("\e[3;02m%18s\e[m %s [%u]\n",
 				"IPv6 Address",
 				a128_str,
 				ntohl(ans_array[k].resource->ttl));
@@ -1143,7 +1143,7 @@ print_answers(cache_t *cachep, u16 cnt, char *buf, int qtype)
 			if (GetName(p, buf, string, &delta) == -1)
 				goto __err;
 			p += delta;
-			printf("\e[3;02m%18s\e[m %s [%u]\r\n", 
+			printf("\e[3;02m%18s\e[m %s [%u]\n", 
 				"URI",
 				string,
 				ntohl(ans_array[k].resource->ttl));
@@ -1196,7 +1196,7 @@ main(int argc, char *argv[])
 
 	if (strlen(host) >= hostmax)
 	{
-		fprintf(stderr, "\e[3;31mmain: hostname exceeds maximum number of chars allowed\e[m\r\n");
+		fprintf(stderr, "\e[3;31mmain: hostname exceeds maximum number of chars allowed\e[m\n");
 		errno = ENAMETOOLONG;
 		goto fail;
 	}
