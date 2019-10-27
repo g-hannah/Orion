@@ -6,6 +6,8 @@
 
 #define DNS_PORT_NR 53
 #define DNS_MAX_TIME_WAIT 5
+#define DNS_MAX_UDP_SIZE 512
+#define DNS_LABEL_OFFSET_BIAS (0xc0 * 0x100)
 
 #define LOCAL_DNS "127.0.1.1"
 #define LOCAL_DNS2 "127.0.0.1"
