@@ -1,22 +1,8 @@
 #ifndef ORION_H
 #define ORION_H 1
 
-#include <arpa/inet.h>
-#include <ctype.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <getopt.h>
-#include <netinet/in.h>
-#include <setjmp.h>
-#include <signal.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <time.h>
-#include <unistd.h>
+#include "buffer.h"
+#include "cache.h"
 
 #define DNS_PORT_NR 53
 #define DNS_MAX_TIME_WAIT 5
@@ -27,12 +13,11 @@
 #define GOOGLE_DNS2 "8.8.4.4"
 
 #define SECS_PER_WEEK (60*60*24*7)
-
 #define TMP_BUF_DEFAULT_SIZE 1024
 
 #define TTL_OK(x) ((x) < SECS_PER_WEEK)
 #define __ALIGN_SIZE(s, _s) (((s) + ((_s) - 1)) & ~((_s) - 1))
-#define __ALIGN_DEF(s) __ALIGN_SIZE(s, 16)
+#define __ALIGN_DEFAULT(s) __ALIGN_SIZE(s, 16)
 
 #define clear_struct(s) memset((s), 0, sizeof((*s)))
 
@@ -46,59 +31,105 @@ typedef uint64_t u64;
 
 enum QTYPE
 {
-	QTYPE_A = 1,
-	QTYPE_NS = 2,
-	QTYPE_CNAME = 5,
-	QTYPE_SOA = 6,
-	QTYPE_PTR = 12,
-	QTYPE_MX = 15,
-	QTYPE_TXT = 16,
-	QTYPE_RP = 17,
-	QTYPE_AFSDB = 18,
-	QTYPE_SIG = 24,
-	QTYPE_KEY = 25,
-	QTYPE_AAAA = 28,
-	QTYPE_LOC = 29,
-	QTYPE_SRV = 33,
-	QTYPE_NAPTR = 35,
-	QTYPE_KX = 36,
-	QTYPE_CERT = 37,
-	QTYPE_DNAME = 39,
-	QTYPE_OPT = 41,
-	QTYPE_APL = 42,
-	QTYPE_DS = 43,
-	QTYPE_SSHFP = 44,
-	QTYPE_IPSECKEY = 45,
-	QTYPE_RRSIG = 46,
-	QTYPE_NSEC = 47,
-	QTYPE_DNSKEY = 48,
-	QTYPE_DHCID = 49,
-	QTYPE_NSEC3 = 50,
-	QTYPE_NSEC3PARAM = 51,
-	QTYPE_TLSA = 52,
-	QTYPE_HIP = 55,
-	QTYPE_CDS = 59,
-	QTYPE_CDNSKEY = 60,
-	QTYPE_OPENPGPGKEY = 61,
-	QTYPE_TKEY = 249,
-	QTYPE_TSIG = 250, /* ttl = 0; class = any; */
-	QTYPE_IXFR = 251,
-	QTYPE_AXFR = 252,
-	QTYPE_ANY = 255,
-	QTYPE_URI = 256,
-	QTYPE_TA = 32768,
-	QTYPE_DLV = 32769
+	DNS_QTYPE_A = 1,
+#define DNS_QTYPE_A DNS_QTYPE_A
+	DNS_QTYPE_NS = 2,
+#define DNS_QTYPE_NS DNS_QTYPE_NS
+	DNS_QTYPE_CNAME = 5,
+#define DNS_QTYPE_CNAME DNS_QTYPE_CNAME
+	DNS_QTYPE_SOA = 6,
+#define DNS_QTYPE_SOA DNS_QTYPE_SOA
+	DNS_QTYPE_PTR = 12,
+#define DNS_QTYPE_PTR DNS_QTYPE_PTR
+	DNS_QTYPE_MX = 15,
+#define DNS_QTYPE_MX DNS_QTYPE_MX
+	DNS_QTYPE_TXT = 16,
+#define DNS_QTYPE_TXT DNS_QTYPE_TXT
+	DNS_QTYPE_RP = 17,
+#define DNS_QTYPE_RP DNS_QTYPE_RP
+	DNS_QTYPE_AFSDB = 18,
+	DNS_QTYPE_SIG = 24,
+#define DNS_QTYPE_SIG DNS_QTYPE_SIG
+	DNS_QTYPE_KEY = 25,
+#define DNS_QTYPE_KEY DNS_QTYPE_KEY
+	DNS_QTYPE_AAAA = 28,
+#define DNS_QTYPE_AAAA DNS_QTYPE_AAAA
+	DNS_QTYPE_LOC = 29,
+#define DNS_QTYPE_LOC DNS_QTYPE_LOC
+	DNS_QTYPE_SRV = 33,
+#define DNS_QTYPE_SRV DNS_QTYPE_SRV
+	DNS_QTYPE_NAPTR = 35,
+#define DNS_QTYPE_NAPTR DNS_QTYPE_NAPTR
+	DNS_QTYPE_KX = 36,
+#define DNS_QTYPE_KX DNS_QTYPE_KX
+	DNS_QTYPE_CERT = 37,
+#define DNS_QTYPE_CERT DNS_QTYPE_CERT
+	DNS_QTYPE_DNAME = 39,
+#define DNS_QTYPE_DNAME DNS_QTYPE_DNAME
+	DNS_QTYPE_OPT = 41,
+#define DNS_QTYPE_OPT DNS_QTYPE_OPT
+	DNS_QTYPE_APL = 42,
+#define DNS_QTYPE_APL DNS_QTYPE_APL
+	DNS_QTYPE_DS = 43,
+#define DNS_QTYPE_DS DNS_QTYPE_DS
+	DNS_QTYPE_SSHFP = 44,
+#define DNS_QTYPE_SSHFP DNS_QTYPE_SSHFP
+	DNS_QTYPE_IPSECKEY = 45,
+#define DNS_QTYPE_IPSECKEY DNS_QTYPE_IPSECKEY
+	DNS_QTYPE_RRSIG = 46,
+#define DNS_QTYPE_RRSIG DNS_QTYPE_RRSIG
+	DNS_QTYPE_NSEC = 47,
+#define DNS_QTYPE_NSEC DNS_QTYPE_NSEC
+	DNS_QTYPE_DNSKEY = 48,
+#define DNS_QTYPE_DNSKEY DNS_QTYPE_DNSKEY
+	DNS_QTYPE_DHCID = 49,
+#define DNS_QTYPE_DHCID DNS_QTYPE_DHCID
+	DNS_QTYPE_NSEC3 = 50,
+#define DNS_QTYPE_NSEC3 DNS_QTYPE_NSEC3
+	DNS_QTYPE_NSEC3PARAM = 51,
+#define DNS_QTYPE_NSEC3PARAM DNS_QTYPE_NSEC3PARAM
+	DNS_QTYPE_TLSA = 52,
+#define DNS_QTYPE_TLSA DNS_QTYPE_TLSA
+	DNS_QTYPE_HIP = 55,
+#define DNS_QTYPE_HIP DNS_QTYPE_HIP
+	DNS_QTYPE_CDS = 59,
+#define DNS_QTYPE_CDS DNS_QTYPE_CDS
+	DNS_QTYPE_CDNSKEY = 60,
+#define DNS_QTYPE_CDNSKEY DNS_QTYPE_CDNSKEY
+	DNS_QTYPE_OPENPGPGKEY = 61,
+#define DNS_QTYPE_OPENPGPKEY DNS_QTYPE_OPENPGPKEY
+	DNS_QTYPE_TKEY = 249,
+#define DNS_QTYPE_TKEY DNS_QTYPE_TKEY
+	DNS_QTYPE_TSIG = 250, /* ttl = 0; class = any; */
+#define DNS_QTYPE_TSIG DNS_QTYPE_TSIG
+	DNS_QTYPE_IXFR = 251,
+#define DNS_QTYPE_IXFR DNS_QTYPE_IXFR
+	DNS_QTYPE_AXFR = 252,
+#define DNS_QTYPE_AXFR DNS_QTYPE_AXFR
+	DNS_QTYPE_ANY = 255,
+#define DNS_QTYPE_ANY DNS_QTYPE_ANY
+	DNS_QTYPE_URI = 256,
+#define DNS_QTYPE_URI DNS_QTYPE_URI
+	DNS_QTYPE_TA = 32768,
+#define DNS_QTYPE_TA DNS_QTYPE_TA
+	DNS_QTYPE_DLV = 32769
+#define DNS_QTYPE_DLV DNS_QTYPE_DLV
 };
 
 typedef enum QTYPE DNS_QTYPE;
 
 enum QCLASS
 {
-	QCLASS_INET = 1,
-	QCLASS_CHAOS = 3,
-	QCLASS_HESIOD = 4,
-	QCLASS_NONE = 254,
-	QCLASS_ALL = 255
+	DNS_QCLASS_INET = 1,
+#define DNS_QCLASS_INET DNS_QCLASS_INET
+	DNS_QCLASS_CHAOS = 3,
+#define DNS_QCLASS_CHAOS DNS_QCLASS_CHAOS
+	DNS_QCLASS_HESIOD = 4,
+#define DNS_QCLASS_HESIOD DNS_QCLASS_HESIOD
+	DNS_QCLASS_NONE = 254,
+#define DNS_QCLASS_NONE DNS_QCLASS_NONE
+	DNS_QCLASS_ALL = 255
+#define DNS_QCLASS_ALL DNS_QCLASS_ALL
 };
 
 typedef enum QCLASS DNS_QCLASS;
@@ -161,7 +192,7 @@ struct RDATA
 	us _class;
 	u32 ttl;
 	us len;
-} __attribute__ ((__packed__));
+} __attribute__((__packed__));
 
 typedef struct RDATA DNS_RDATA;
 
@@ -182,21 +213,20 @@ struct NAPTR_DATA
 	uc *services;
 	uc *regex;
 	uc *replace;
-} __attribute__ ((__packed__));
+} __attribute__((__packed__));
 
 typedef struct NAPTR_DATA NAPTR_DATA;
 
+int encode_name(char *, char *, size_t *) __nonnull((1,2,3)) __wur;
+int decode_name(char *, char *, char *, size_t) __nonnull((1,2,3)) __wur;
+int convert_to_ptr(char *, char *, size_t *) __nonnull((1,2,3)) __wur;
+int convert_to_ptr6(char *, char *, size_t *) __nonnull((1,2,3)) __wur;
+int convert_nr_e164(char *, char *, size_t *) __nonnull((1,2,3)) __wur;
+int get_name(char *, char *, buf_t *, size_t *) __nonnull((1,2,3,4)) __wur;
+int get_records(cache_t *, u16, char *, char *, size_t, size_t *) __nonnull((1,3,4,6)) __wur;
+int print_records(cache_t *, u16, char *, int) __nonnull((1,3)) __wur;
 
-
-/* __START_FUNC_DECS__ */
-ssize_t ConvertName(uc *, uc *, size_t *) __THROW __nonnull ((1,2,3)) __wur;
-ssize_t ConvertToPtr(uc *, uc *, size_t *) __THROW __nonnull ((1,2,3)) __wur;
-ssize_t ConvertToPtr6(uc *, uc *, size_t *) __THROW __nonnull ((1,2,3)) __wur;
-ssize_t ConvertNumberToE164(uc *, uc *, size_t *) __THROW __nonnull ((1,2,3)) __wur;
-ssize_t GetName(uc *, uc *, uc *, size_t *) __THROW __nonnull ((1,2,3,4)) __wur;
-ssize_t GetAnswers(DNS_RRECORD[], u16, uc *, _atomic_) __THROW __nonnull ((1,3)) __wur;
-ssize_t GetRecords(DNS_RRECORD[], u16, uc *, uc *, size_t, size_t *)
-	__THROW __nonnull ((1,3,4,6)) __wur;
+/* TODO Change rest of declarations */
 uc *GetQClass(us) __THROW __wur;
 uc *GetQType(us) __THROW __wur;
 uc *GetOpCode(us) __THROW __wur;
@@ -208,39 +238,16 @@ ssize_t PrintInfoDNS(uc *, int, u16, uc *) __THROW __nonnull ((1,4)) __wur;
 ssize_t DoTCP(uc *, size_t, uc *) __THROW __nonnull ((1,3)) __wur;
 ssize_t DoUDP(uc *, size_t, uc *) __THROW __nonnull ((1,3)) __wur;
 ssize_t HandleNAPTRrecord(DNS_RRECORD *) __THROW __nonnull ((1)) __wur;
-/* __END_FUNC_DECS__ */
 
 /*wrappers*/
 void *calloc_e(void *, size_t, size_t) __attribute__ ((alloc_size(2,3)));
 void *malloc_e(void *, size_t) __attribute__ ((alloc_size(2)));
 int socket_e(int, int, int, int);
+
 /*a == 'all' */
 ssize_t send_a(int, uc *, size_t, int) __THROW __nonnull ((2)) __wur;
 ssize_t recv_a(int, uc *, size_t, int) __THROW __nonnull ((2)) __wur;
 ssize_t sendto_a(int, uc *, size_t, int, struct sockaddr *, socklen_t) __THROW __nonnull ((2)) __wur;
 ssize_t recvfrom_a(int, uc *, size_t, int, struct sockaddr *, socklen_t *) __THROW __nonnull ((2,5,6)) __wur;
-
-int decode_name(uc *, uc *, uc *, size_t) __nonnull((1,2,3)) __wur;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #endif /* !defined ORION_H */
