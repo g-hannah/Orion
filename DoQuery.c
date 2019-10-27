@@ -40,61 +40,38 @@ do_query(char *host, char *ns, int qtype, int qclass)
 	dns->cd = 1;
 	dns->qdcnt = htons(1);
 
-	if (12 == qtype)
+	if (DNS_QTYPE_PTR == qtype)
 	{
+		if (convert_to_ptr(qname, host, &qnamelen) < 0)
+			goto fail;
 	}
 	else
-	if (35 == qtype)
+	if (DNS_QTYPE_NAPTR == qtype)
 	{
+		if (!(e164 = calloc_e(e164, hostmax*2, 1)))
+			goto fail;
+
+		if (convert_nr_e164(e164, host, &qnamelen) < 0)
+			goto fail;
+
+		if (encode_name(qname, e164, &qnamelen) < 0)
+			goto fail;
 	}
+	else
+	{
+		if (encode_name(qname, host, &qnamelen) < 0)
+			goto fail;
+	}
+
+	return 0;
+
+	fail:
+	return -1;
 }
 
 ssize_t
 DoQuery(uc *host, uc *ns, _atomic_ q_type, _atomic_ q_class)
 {
-	if (!(buf = calloc_e(buf, BUFSIZ, sizeof(uc))))
-		goto __err;
-
-	if (q_type == 12) /* PTR record */
-	  {
-		for (i = 0; i < strlen(host); ++i)
-		  {
-			if (isalpha(host[i]))
-				{ V6_PTR = 1; break; }
-		  }
-		if (!V6_PTR)
-		  {
-			if (ConvertToPtr(qname, host, &qnamelen) == -1)
-		  	  {
-				goto __err;
-		  	  }
-		
-		  }
-		else
-		  {
-			if (ConvertToPtr6(qname, host, &qnamelen) == -1)
-			  {
-				goto __err;
-			  }
-		  }
-	  }
-	else if (q_type == 35) /* NAPTR record */
-	  {
-		if (!(e164 = (uc *)calloc_e(e164, hostmax, sizeof(char))))
-			goto __err;
-		if (ConvertNumberToE164(e164, host, &qnamelen) == -1)
-			{ perror("DoQuery: ConvertNumberToE164"); goto __err; }
-		if (ConvertName(qname, e164, &qnamelen) == -1)
-			{ perror("DoQuery: ConvertName"); goto __err; }
-	  }
-	else
-	  {
-		if (ConvertName(qname, host, &qnamelen) == -1)
-		  {
-			goto __err;
-		  }
-	  }
-
 	q = (DNS_QUESTION *)&buf[sizeof(DNS_HEADER)+qnamelen+1];
 	q->qtype = htons(q_type);
 	q->qclass = htons(q_class);
