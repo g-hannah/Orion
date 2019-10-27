@@ -1199,25 +1199,17 @@ main(int argc, char *argv[])
 		goto fail;
 	}
 
-	while ((c = getopt(argc, argv, "hDS:t:c:x")) != -1)
+	while ((c = getopt(argc, argv, "hS:t:c:x")) != -1)
 	{
 		switch(c)
 		{
-			case(0x78):
+			case 0x78:
 				STALE_OK = 1;
 				break;
-			case(0x68):
+			case 0x68:
 				usage(EXIT_SUCCESS);
 				break;
-			case(0x44):
-				if (DHCP_GetNS(ns) == -1)
-				{
-					perror("DHCP_GetNS");
-					goto fail;
-				}
-				DNS_SRV_FL = 1;
-				break;
-			case(0x53):
+			case 0x53:
 				if (strncpy(ns, optarg, INET_ADDRSTRLEN) == NULL)
 				{
 					perror("strncpy");
@@ -1225,7 +1217,7 @@ main(int argc, char *argv[])
 				}
 				DNS_SRV_FL = 1;
 				break;
-			case(0x63): /* specify class */
+			case 0x63: /* specify class */
 				len = strlen(optarg);
 				if (strncpy(classStr, optarg, len) == NULL)
 				{
@@ -1244,7 +1236,7 @@ main(int argc, char *argv[])
 				else
 					qclass = 1;
 				break;
-			case(0x74):
+			case 0x74:
 				len = strlen(optarg);
 				strncpy(typeStr, optarg, len);
 				typeStr[len] = 0;
@@ -1350,7 +1342,7 @@ main(int argc, char *argv[])
 				}
 				__got_type:
 				break;
-			case(0x3f):
+			case 0x3f:
 				usage(EXIT_FAILURE);
 				break;
 			default:
