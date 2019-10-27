@@ -1,13 +1,19 @@
 #include "dns.h"
 
-int
-do_query(uc *host, uc *ns, int qtype, int qclass)
+static char *
+__dns_qname(char *buf)
 {
-	u16 tid;
-	char *buffer;
+	return (buf + sizeof(DNS_HEADER));
+}
+
+int
+do_query(char *host, char *ns, int qtype, int qclass)
+{
+	char *buf;
 	char *qname;
 	char *p;
 	char *e164;
+	u16 tid;
 	DNS_RRECORD *answers;
 	DNS_RRECORD *auth;
 	DNS_RRECORD *additional;
@@ -21,7 +27,26 @@ do_query(uc *host, uc *ns, int qtype, int qclass)
 	size_t delta;
 	double diff;
 
-	
+	if (!(buf = calloc_e(buf, BUFSIZ, 1)))
+		goto fail;
+
+	memset(buf, 0, BUFSIZ);
+	tid = htons(getpid());
+	qname = __dns_qname(buf);
+
+	dns = (DNS_HEADER *)buf;
+	dns->ident = tid;
+	dns->rd = 1;
+	dns->cd = 1;
+	dns->qdcnt = htons(1);
+
+	if (12 == qtype)
+	{
+	}
+	else
+	if (35 == qtype)
+	{
+	}
 }
 
 ssize_t
@@ -30,34 +55,6 @@ DoQuery(uc *host, uc *ns, _atomic_ q_type, _atomic_ q_class)
 	if (!(buf = calloc_e(buf, BUFSIZ, sizeof(uc))))
 		goto __err;
 
-	for (z = 0; z < 20; ++z)
-	{
-		answers[z].name = NULL;
-		answers[z].rdata = NULL;
-		auth[z].name = NULL;
-		auth[z].rdata = NULL;
-		addit[z].name = NULL;
-		addit[z].rdata = NULL;
-	}
-
-	dns = (DNS_HEADER *)buf;
-	qname = &buf[sizeof(DNS_HEADER)];
-	dns->ident = htons(getpid());
-	transaction_id = ntohs(dns->ident);
-	dns->qr = 0;
-	dns->opcode = 0;
-	dns->aa = 0;
-	dns->tc = 0;
-	dns->rd = 1;
-	dns->ra = 0;
-	dns->z = 0;
-	dns->ad = 0;
-	dns->cd = 1;
-	dns->rcode = 0;
-	dns->qdcnt = htons(1);
-	dns->ancnt = 0;
-	dns->nscnt = 0;
-	dns->arcnt = 0;
 	if (q_type == 12) /* PTR record */
 	  {
 		for (i = 0; i < strlen(host); ++i)
