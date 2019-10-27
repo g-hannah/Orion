@@ -375,6 +375,207 @@ get_qclass(unsigned short qclass)
 }
 
 int
+encode_name(char *qname, char *host, size_t *len)
+{
+	int qidx = 0;
+	char *p;
+	char *q;
+	size_t l = strlen((char *)host);
+  
+	p = q = host;
+  
+	while (1)
+	{
+		q = memchr((char *)p, '.', l);
+
+		if (!q)
+		{
+			q = (host + len);
+			qname[qidx++] = (uc)(q - p);
+			memcpy((char *)(qname + qidx), p, (q - p));
+			qidx += (q - p);
+			break;
+		}
+
+		qname[qidx++] = (uc)(q - p);
+		memcpy((char *)(qname + qidx), p, (q - p));
+		qidx += (q - p);
+		p = ++q;
+	}
+
+	*len = strlen(qname);
+	return 0;
+}
+
+static inline off_t __label_off(uc *ptr)
+{
+	return ((*ptr * 0x100) + *(ptr + 1) - DNS_LABEL_OFFSET_BIAS);
+}
+
+int
+decode_name(char *cur_pos, char *in, buf_t *out, size_t *delta)
+{
+	assert(rcvd);
+	assert(buf);
+	assert(target);
+	assert(delta);
+
+	int i;
+	size_t len;
+	size_t __delta = 0;
+	off_t off;
+	char *p;
+	int jflag = 0;
+
+/*
+ * E.g., (B == octet of data)
+ *
+ * BBBB5orion2co2ukBBBBBBBBBBBBBBBBBBBB3www9astronomy[>=192][4]
+ *
+ * After www.astronomy, the offset to the desired label from
+ * the start of the received data is encoded in the next two bytes
+ * if the next immediate octet is >= 192.
+ */
+
+	buf_clear(out);
+
+	for (p = cur_pos; *p != 0; ++p)
+	{
+		if ((unsigned char)*p >= 0xc0)
+		{
+			off = __label_off(p);
+			p = (in + off);
+			jflag = 1;
+			off = 0;
+		}
+
+		buf_append_ex(out, p, 1);
+
+		if (!jflag)
+			++__delta;
+	}
+
+	if (jflag)
+		p = (cur_pos + __delta + 1);
+
+	++p;
+
+/*
+ * Replace the encoded label lengths with '.'
+ */
+	buf_collapse(out, (off_t)0, (size_t)1);
+	for (i = 0; i < out->data_len; ++i)
+	{
+		if (!isascii(out->buf_head[i]))
+			out->buf_head[i] = '.';
+	}
+
+	*delta = (p - cur_pos);
+
+#if 0
+	for (p = (uc *)rcvd; *p != 0; ++p)
+	{
+		if (*p >= 0xc0) // >= 192
+		  {
+			offset = ((*p) * 256) + *(p+1) - (192*256);
+			p = (uc *)(buf + offset);
+			jmp_fl = 1;
+			offset = 0;
+		  }
+		target[len++] = *p;
+		if (!jmp_fl)
+			++delt;
+	}
+	if (jmp_fl == 1)
+		{ p = (start + delt); ++p; }
+	++p;
+	*delta = (p - start);
+
+	/* convert to normal format */
+	for (i = 0; i < len; ++i)
+	  {
+		target[i] = target[i+1];
+		if (!isalpha(target[i]) && !isdigit(target[i]) && target[i] != '-')
+			target[i] = '.';
+	  }
+	i = 0;
+#endif
+
+	return 0;
+}
+
+int
+convert_to_ptr(char *name, char *host, size_t *qnamelen)
+{
+	assert(name);
+	assert(host);
+	assert(qnamelen);
+
+	int i;
+	char *p;
+	char *q;
+	char *e;
+	char *tmp;
+	size_t host_len = strlen(host);
+	size_t len;
+	char _1[4], _2[4], _3[4], _4[4];
+
+	asseert(host_len < hostmax);
+
+	if (!(tmp = calloc_e(tmp, DEFAULT_TMP_BUF_SIZE, 1)))
+		goto fail;
+
+	e = (host + host_len);
+
+	host[host_len++] = '.';
+	p = host;
+
+	q = memchr(p, '.', (e - p));
+	memcpy((void *)_1, (void *)p, (q - p));
+	_1[q - p] = 0;
+
+	p = ++q;
+
+	q = memchr(p, '.', (e - p));
+	memcpy((void *)_2, (void *)p, (q - p));
+	_2[q - p] = 0;
+
+	p = ++q;
+
+	q = memchr(p, '.', (e - p));
+	memcpy((void *)_3, (void *)p, (q - p));
+	_3[q - p] = 0;
+
+	p = ++q;
+
+	q = memchr(p, '.', (e - p));
+	memcpy((void *)_4, (void *)p, (q - p));
+	_4[q - p] = 0;
+
+	sprintf(tmp, "%s.%s.%s.%s.in-addr.arpa", _4, _3, _2, _1);
+	len = strlen(tmp);
+	tmp[len++] = '.';
+	tmp[len] = 0;
+
+	if (encode_name(name, tmp, qnamelen) < 0)
+		goto fail;
+
+	free(tmp);
+	tmp = NULL;
+
+	return 0;
+
+	fail:
+	if (tmp)
+	{
+		free(tmp);
+		tmp = NULL;
+	}
+
+	return -1;
+}
+
+int
 convert_to_ptr6(char *out, char *in, size_t *out_len)
 {
 	assert(out);
@@ -751,136 +952,6 @@ do_tcp(uc *buf, size_t size, uc *ns)
 	fail:
 
 	return -1;
-}
-
-int
-encode_name(uc *qname, uc *host, size_t *len)
-{
-	int qidx = 0;
-	uc *p = NULL;
-	uc *q = NULL;
-	size_t l = strlen((char *)host);
-  
-	p = q = host;
-  
-	while (1)
-	{
-		q = memchr((char *)p, '.', l);
-
-		if (!q)
-		{
-			q = (host + len);
-			qname[qidx++] = (uc)(q - p);
-			memcpy((char *)(qname + qidx), p, (q - p));
-			qidx += (q - p);
-			break;
-		}
-
-		qname[qidx++] = (uc)(q - p);
-		memcpy((char *)(qname + qidx), p, (q - p));
-		qidx += (q - p);
-		p = ++q;
-	}
-
-	*len = strlen(qname);
-	return 0;
-}
-
-static inline off_t __label_off(uc *ptr)
-{
-	return ((*ptr * 0x100) + *(ptr + 1) - DNS_LABEL_OFFSET_BIAS);
-}
-
-int
-decode_name(char *cur_pos, char *in, buf_t *out, size_t *delta)
-{
-	assert(rcvd);
-	assert(buf);
-	assert(target);
-	assert(delta);
-
-	int i;
-	size_t len;
-	size_t __delta = 0;
-	off_t off;
-	char *p;
-	int jflag = 0;
-
-/*
- * E.g., (B == octet of data)
- *
- * BBBB5orion2co2ukBBBBBBBBBBBBBBBBBBBB3www9astronomy[>=192][4]
- *
- * After www.astronomy, the offset to the desired label from
- * the start of the received data is encoded in the next two bytes
- * if the next immediate octet is >= 192.
- */
-
-	buf_clear(out);
-
-	for (p = cur_pos; *p != 0; ++p)
-	{
-		if ((unsigned char)*p >= 0xc0)
-		{
-			off = __label_off(p);
-			p = (in + off);
-			jflag = 1;
-			off = 0;
-		}
-
-		buf_append_ex(out, p, 1);
-
-		if (!jflag)
-			++__delta;
-	}
-
-	if (jflag)
-		p = (cur_pos + __delta + 1);
-
-	++p;
-
-/*
- * Replace the encoded label lengths with '.'
- */
-	buf_collapse(out, (off_t)0, (size_t)1);
-	for (i = 0; i < out->data_len; ++i)
-	{
-		if (!isascii(out->buf_head[i]))
-			out->buf_head[i] = '.';
-	}
-
-	*delta = (p - cur_pos);
-
-#if 0
-	for (p = (uc *)rcvd; *p != 0; ++p)
-	{
-		if (*p >= 0xc0) // >= 192
-		  {
-			offset = ((*p) * 256) + *(p+1) - (192*256);
-			p = (uc *)(buf + offset);
-			jmp_fl = 1;
-			offset = 0;
-		  }
-		target[len++] = *p;
-		if (!jmp_fl)
-			++delt;
-	}
-	if (jmp_fl == 1)
-		{ p = (start + delt); ++p; }
-	++p;
-	*delta = (p - start);
-
-	/* convert to normal format */
-	for (i = 0; i < len; ++i)
-	  {
-		target[i] = target[i+1];
-		if (!isalpha(target[i]) && !isdigit(target[i]) && target[i] != '-')
-			target[i] = '.';
-	  }
-	i = 0;
-#endif
-
-	return 0;
 }
 
 int
