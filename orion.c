@@ -1171,12 +1171,36 @@ print_answers(cache_t *cachep, u16 cnt, char *buf, int qtype)
 	return -1;
 }
 
+static int
+qtype_atov(char *s)
+{
+	if (!strcasecmp("a", s))
+		return DNS_QTYPE_A;
+	else
+	if (!strcasecmp("mx", s))
+		return DNS_QTYPE_MX;
+	else
+	if (!strcasecmp("nptr", s))
+		return DNS_QTYPE_NPTR;
+	else
+	if (!strcasecmp("aaaa", s))
+		return DNS_QTYPE_AAAA;
+	else
+	if (!strcasecmp("ixfr", s))
+		return DNS_QTYPE_IXFR;
+	else
+	if (!strcasecmp("axfr", s))
+		return DNS_QTYPE_AXFR;
+	else
+		return DNS_QTYPE_A;
+}
+
 int
 main(int argc, char *argv[])
 {
 	char c;
-	char typeStr[20];
-	char classStr[20];
+	static char qtype_str[DNS_MAX_QTYPE_STRLEN];
+	static char qclass_str[DNS_MAX_QCLASS_STRLEN];
 	char ns[INET_ADDRSTRLEN];
 	uc *telno = NULL;
 	uc *p = NULL;
@@ -1238,10 +1262,11 @@ main(int argc, char *argv[])
 				break;
 			case 0x74:
 				len = strlen(optarg);
-				strncpy(typeStr, optarg, len);
-				typeStr[len] = 0;
-				for (int k = 0; k < (strlen(typeStr)); ++k)
-					typeStr[k] = tolower(typeStr[k]);
+				assert(len < DNS_MAX_QTYPE_STRLEN);
+				memcpy((void *)qtype_str, (void *)optarg, len);
+				qtype_str[len] = 0;
+				qtype = qtype_atov(qtype_str);
+
 				if (strncmp(typeStr, "a", 1) == 0 &&
 			  	  strncmp(typeStr, "aaaa", 4) != 0 &&
 			  	  strncmp(typeStr, "axfr", 4) != 0)
