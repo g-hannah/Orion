@@ -1,130 +1,136 @@
 #include "dns.h"
 
-static int err;
-
 void *
 calloc_e(void *p, size_t size, size_t type)
 {
 	if (!(p = calloc(size, type)))
-	  {
-		err = errno;
-		fprintf(stderr, "calloc: ");
-		errno = err;
-		return(NULL);
-	  }
+	{
+		fprintf(stderr, "calloc_e: failed to allocate memory (%s)\n", strerror(errno));
+		return NULL;
+	}
 	else
-		return(p);
+	{
+		return p;
+	}
 }
 
 void *
 malloc_e(void *p, size_t type)
 {
 	if (!(p = malloc(type)))
-	  {
-		err = errno;
-		fprintf(stderr, "malloc: ");
-		errno = err;
-		return(NULL);
-	  }
+	{
+		fprintf(stderr, "malloc_e: failed to allocate memory (%s)\n", strerror(errno));
+		return NULL;
+	}
 	else
-		return(p);
+	{
+		return p;
+	}
 }
 
 int
 socket_e(int s, int domain, int type, int protocol)
 {
 	if ((s = socket(domain, type, protocol)) < 0)
-	  {
+	{
 		err = errno;
-		fprintf(stderr, "socket: ");
+		fprintf(stderr, "socket_e: failed to open socket (%s)\n", strerror(errno));
 		errno = err;
-		return(-1);
-	  }
+		return -1;
+	}
 	else
-		return(s);
+	{
+		return s;
+	}
 }
 
 ssize_t
-send_a(int sock, uc *buf, size_t size, int flags)
+send_a(int sock, char *buf, size_t size, int flags)
 {
 	size_t tosend = size, total = 0;
 	ssize_t ret = 0;
-	uc *p = buf;
+	char *p = buf;
 
-	while (tosend > 0 && (ret = send(sock, p, tosend, flags) > 0))
-	  {
+	while (tosend > 0 && (ret = send(sock, p, tosend, flags)))
+	{
 		if (ret < 0)
-		  {
-			err = errno;
-			fprintf(stderr, "send: ");
-			errno = err;
-			return(-1);
-		  }
+		{
+			fprintf(stderr, "send_a: failed to send data (%s)\n", strerror(errno));
+			return -1;
+		}
+
 		tosend -= ret;
 		p += ret;
 		total += ret;
-	  }
-	return(total);
+	}
+
+	return total;
 }
 
 ssize_t
-recv_a(int sock, uc *buf, size_t size, int flags)
+recv_a(int sock, char *buf, size_t size, int flags)
 {
 	ssize_t ret = 0;
 	size_t total = 0;
-	uc *p = buf;
+	char *p = buf;
 
-	while ((ret = recv(sock, p, size, flags) > 0))
-	  {
+	while ((ret = recv(sock, p, size, flags)))
+	{
 		if (ret < 0)
-		  {
-			perror("recv");
-			return(-1);
-		  }
+		{
+			fprintf(stderr, "recv_a: failed to receive data (%s)\n", strerror(errno));
+			return -1;
+		}
+
 		p += ret;
 		total += ret;
-	  }
-	return(total);
+	}
+
+	return total;
 }
 
 ssize_t
-recvfrom_a(int sock, uc *buf, size_t size, int flags, struct sockaddr *sa, socklen_t *ss)
+recvfrom_a(int sock, char *buf, size_t size, int flags, struct sockaddr *sa, socklen_t *ss)
 {
-	ssize_t ret = 0, total = 0;
-	uc *p = buf;
+	ssize_t ret = 0;
+	ssize_t total = 0;
+	char *p = buf;
 
-	while ((ret = recvfrom(sock, p, size, flags, sa, ss)) > 0)
-	  {
+	while ((ret = recvfrom(sock, p, size, flags, sa, ss)))
+	{
 		if (ret < 0)
-		  {
-			perror("recvfrom");
-			return(-1);
-		  }
+		{
+			fprintf(stderr, "recvfrom_a: failed to receive data (%s)\n", strerror(errno));
+			return -1;
+		}
+
 		p += ret;
 		total += ret;
-	  }
-	return(total);
+	}
+
+	return total;
 }
 
 ssize_t
-sendto_a(int sock, uc *buf, size_t size, int flags, struct sockaddr *sa, socklen_t ss)
+sendto_a(int sock, char *buf, size_t size, int flags, struct sockaddr *sa, socklen_t ss)
 {
 	size_t tosend = size;
-	ssize_t ret = 0, total = 0;
-	uc *p = buf;
+	size_t total = 0;
+	ssize_t ret = 0;
+	char *p = buf;
 
-	while (tosend > 0 && (ret = sendto(sock, p, tosend, flags, sa, ss)) > 0)
-	  {
+	while (tosend > 0 && (ret = sendto(sock, p, tosend, flags, sa, ss)))
+	{
 		if (ret < 0)
-		  {
-			err = errno;
-			fprintf(stderr, "sendto: ");
-			errno = err;
-			return(-1);
-		  }
+		{
+			fprintf(stderr, "sendto_a: failed to send data (%s)\n", strerror(errno));
+			return -1;
+		}
+
 		tosend -= ret;
 		p += ret;
 		total += ret;
-	  }
-	return(total);
+	}
+
+	return total;
 }
