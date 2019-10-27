@@ -1177,30 +1177,36 @@ print_answers(cache_t *cachep, u16 cnt, char *buf, int qtype)
 
 				break;
 			case 16: /* Text Record */
-			printf("\e[3;02m%s\e[m\n", "Txt Record");
-			p = ans_array[k].rdata;
-			while (p < (ans_array[k].rdata + ntohs(ans_array[k].resource->len)))
-			  {
-				if (iscntrl(*p) && *p != '\r' && *p != '\n')
-					++p;
-				putchar(*p++);
-			  } 
-			putchar('\n');
-			free(ans_array[k].name); free(ans_array[k].rdata);
-			ans_array[k].name = NULL; ans_array[k].rdata = NULL;
-			break;
-			case(28): /* AAAA record (ipv6) */
-			p = ans_array[k].rdata;
-			a128 = (struct in6_addr *)p;
-			if (! inet_ntop(AF_INET6, &a128->s6_addr, a128_str, INET6_ADDRSTRLEN))
-				{ perror("GetAnswers: inet_ntop"); goto __err; }
-			p += ntohs(ans_array[k].resource->len);
-			printf("\e[3;02m%18s\e[m %s [%u]\n",
-				"IPv6 Address",
-				a128_str,
-				ntohl(ans_array[k].resource->ttl));
-			break;
-			case(35): /* NAPTR record */
+				p = r->rdata;
+				fprintf(stdout, "%s%18s%s\n", COL_GREEN, "Txt Record", COL_END);
+				while (p < (r->rdata + ntohs(r->resource->len)))
+				{
+					while (iscntrl(*p) && *p != 0x0d && *p != 0x0a)
+						++p;
+
+					putchar(*p++);
+				}
+				putchar('\n');
+
+				break;
+			case 28: /* AAAA record (ipv6) */
+				p = r->rdata;
+				a128 = (struct in6_addr *)p;
+				if (!inet_ntop(AF_INET6, &a128->s6_addr, a128_str, INET6_ADDRSTRLEN))
+				{
+					fprintf(stderr, "print_records: inet_ntop error (%s)\n", strerror(errno));
+					goto fail;
+				}
+
+				p += ntohs(r->resource->len);
+
+/* colour used \e[3;02m */
+				fprintf(stdout, "%s%18s%s %s [%u]\n",
+						COL_GREEN, "IPv6 Address", COL_END,
+						a128_str,
+						ntohl(r->resource->ttl));
+				break;
+			case 35: /* NAPTR record */
 			if (HandleNAPTRrecord(&ans_array[k]) == -1)
 				{ perror("GetAnswers: HandleNAPTRrecord"); goto __err; }
 			break;
