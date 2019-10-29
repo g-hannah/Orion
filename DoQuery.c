@@ -103,6 +103,42 @@ do_query(char *host, char *ns, int qtype, int qclass)
 
 	diff = ((double)(((double)t2.tv_nsec/NSEC_PER_SEC) - ((double)t1.tv_nsec/NSEC_PER_SEC)));
 
+	fprintf(stderr, "\e[3;02mDNS Response (%3.2lf ms; Protocol %s)\e[m\r\n",
+			diff,
+			(tcp?"TCP":"UDP"));
+
+	dns = (DNS_HEADER *)buf;
+	p = buf;
+
+	if (print_info_dns(p, 1, tid, ns) < 0)
+		goto fail;
+
+	p = &buf[sizeof(DNS_HEADER) + qnamelen + 1 + sizeof(DNS_QUESTION)];
+
+	if (ntohs(dns->ancnt) > 0)
+	{
+		if (get_records(answer_cache, ntohs(dns->ancnt), p, buf, total, &delta) < 0)
+			goto fail;
+
+		p += delta;
+	}
+
+	if (ntohs(dns->nscnt) > 0)
+	{
+		if (get_records(auth_cache, ntohs(dns->nscnt), p, buf, total, &delta) < 0)
+			goto fail;
+
+		p += delta;
+	}
+
+	if (ntohs(dns->arcnt) > 0)
+	{
+		if (get_records(additional_cache, ntohs(dns->arcnt), p, buf, total, &delta) < 0)
+			goto fail;
+
+		p += delta;
+	}
+
 	return 0;
 
 	fail:
@@ -112,39 +148,6 @@ do_query(char *host, char *ns, int qtype, int qclass)
 ssize_t
 DoQuery(uc *host, uc *ns, _atomic_ q_type, _atomic_ q_class)
 {
-
-	printf("\e[3;02mDNS Response (%3.2lf ms; Protocol %s)\e[m\r\n",
-			diff,
-			(__USED_TCP==1?"TCP":"UDP"));
-
-	dns = (DNS_HEADER *)buf;
-	p = buf;
-	if (PrintInfoDNS(p, 1, transaction_id, ns) == -1)
-		{ perror("PrintInfoDNS"); goto __err; }
-
-
-			/* Extract the DNS Records */
-
-	p = &buf[sizeof(DNS_HEADER)+qnamelen+1+sizeof(DNS_QUESTION)];
-	if (ntohs(dns->ancnt) > 0)
-	  {
-		if (GetRecords(answers, ntohs(dns->ancnt), p, buf, trcvd, &delta) == -1)
-			{ perror("GetRecords"); goto __err; }
-		p += delta;
-	  }
-	if (ntohs(dns->nscnt) > 0)
-	  {
-		if (GetRecords(auth, ntohs(dns->nscnt), p, buf, trcvd, &delta) == -1)
-			goto __err;
-		p += delta;
-	  }
-	if (ntohs(dns->arcnt) > 0)
-	  {
-		if (GetRecords(addit, ntohs(dns->arcnt), p, buf, trcvd, &delta) == -1)
-			goto __err;
-		p += delta;
-	  }
-
 			/* Print the DNS Resource Records */
 
 	if (ntohs(dns->ancnt) > 0)
