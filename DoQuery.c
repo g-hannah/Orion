@@ -63,6 +63,12 @@ do_query(char *host, char *ns, int qtype, int qclass)
 			goto fail;
 	}
 
+	p = (DNS_QUESTION *)&buf[sizeof(DNS_HEADER)+qnamelen+1];
+	p->qtype = htons(qtype);
+	p->qclass = htons(qclass);
+
+	tosend = sizeof(DNS_HEADER) + qnamelen + 1 + sizeof(DNS_QUESTION);
+
 	return 0;
 
 	fail:
