@@ -4,6 +4,8 @@
 #include "buffer.h"
 #include "cache.h"
 
+#define NSEC_PER_SEC 1000000
+
 #define DNS_PORT_NR 53
 #define DNS_MAX_TIME_WAIT 5
 #define DNS_MAX_UDP_SIZE 512
