@@ -26,6 +26,7 @@ do_query(char *host, char *ns, int qtype, int qclass)
 	size_t total;
 	size_t delta;
 	double diff;
+	int tcp = 0;
 
 	if (!(buf = calloc_e(buf, BUFSIZ, 1)))
 		goto fail;
@@ -68,6 +69,35 @@ do_query(char *host, char *ns, int qtype, int qclass)
 	p->qclass = htons(qclass);
 
 	tosend = sizeof(DNS_HEADER) + qnamelen + 1 + sizeof(DNS_QUESTION);
+	total = 0;
+
+	clear_struct(&time1);
+	clear_struct(&time2);
+
+	if (clock_gettime(CLOCK_REALTIME, &time1) < 0)
+	{
+		fprintf(stderr, "do_query: clock_gettime (CLOCK_REALTIME) error (%s)\n", strerror(errno));
+		goto fail;
+	}
+
+	if (DNS_QTYPE_AXFR == qtype)
+	{
+		if ((total = do_tcp(buf, tosend, ns)) < 0)
+			goto fail;
+
+		tcp = 1;
+	}
+	else
+	{
+		if ((total = do_udp(buf, tosend, ns)) < 0)
+			goto fail;
+	}
+
+	if (clock_gettime(CLOCK_REALTIME, &time2) < 0)
+	{
+		fprintf(stderr, "do_query: clock_gettime (CLOCK_REALTIME) error (%s)\n", strerror(errno));
+		goto fail;
+	}
 
 	return 0;
 
@@ -78,11 +108,6 @@ do_query(char *host, char *ns, int qtype, int qclass)
 ssize_t
 DoQuery(uc *host, uc *ns, _atomic_ q_type, _atomic_ q_class)
 {
-	q = (DNS_QUESTION *)&buf[sizeof(DNS_HEADER)+qnamelen+1];
-	q->qtype = htons(q_type);
-	q->qclass = htons(q_class);
-
-	tosend = (sizeof(DNS_HEADER)+qnamelen+1+sizeof(DNS_QUESTION));
 	trcvd = 0;
 	memset(&t1, 0, sizeof(t1));
 	memset(&t2, 0, sizeof(t2));
