@@ -1,5 +1,7 @@
 #include "dns.h"
 
+#define NSEC_PER_SEC 1000000
+
 static char *
 __dns_qname(char *buf)
 {
@@ -99,6 +101,8 @@ do_query(char *host, char *ns, int qtype, int qclass)
 		goto fail;
 	}
 
+	diff = ((double)(((double)t2.tv_nsec/NSEC_PER_SEC) - ((double)t1.tv_nsec/NSEC_PER_SEC)));
+
 	return 0;
 
 	fail:
@@ -108,25 +112,6 @@ do_query(char *host, char *ns, int qtype, int qclass)
 ssize_t
 DoQuery(uc *host, uc *ns, _atomic_ q_type, _atomic_ q_class)
 {
-	trcvd = 0;
-	memset(&t1, 0, sizeof(t1));
-	memset(&t2, 0, sizeof(t2));
-	if (clock_gettime(CLOCK_REALTIME, &t1) < 0)
-		{ perror("doquery: clock_gettime"); goto __err; }
-	if (q_type == 252) /* axfr */
-	  {
-		if ((trcvd = DoTCP(buf, tosend, ns)) == -1)
-			goto __err;
-		__USED_TCP = 1;
-	  }
-	else
-	  {
-		if ((trcvd = DoUDP(buf, tosend, ns)) == -1)
-			goto __err;
-	  }
-	if (clock_gettime(CLOCK_REALTIME, &t2) < 0)
-		{ perror("doquery: clock_gettime"); goto __err; }
-	diff = ((double)(((double)t2.tv_nsec/1000000) - ((double)t1.tv_nsec/1000000)));
 
 	printf("\e[3;02mDNS Response (%3.2lf ms; Protocol %s)\e[m\r\n",
 			diff,
