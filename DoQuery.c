@@ -120,12 +120,20 @@ do_query(char *host, char *ns, int qtype, int qclass)
 		if (get_records(answer_cache, ntohs(dns->ancnt), p, buf, total, &delta) < 0)
 			goto fail;
 
+		fprintf(stderr, "\e[1;02m\e[3;32m\tANSWER RESOURCE RECORDS\e[m\r\n");
+		if (print_answers(answer_cache, ntohs(dns->ancnt), buf, qtype) < 0)
+			goto fail;
+
 		p += delta;
 	}
 
 	if (ntohs(dns->nscnt) > 0)
 	{
 		if (get_records(auth_cache, ntohs(dns->nscnt), p, buf, total, &delta) < 0)
+			goto fail;
+
+		fprintf(stdout, "\e[1;02m\e[3;32m\tAUTHORITATIVE RESOURCE RECORDS\e[m\r\n");
+		if (print_answers(auth_cache, ntohs(dns->nscnt), buf, qtype) < 0)
 			goto fail;
 
 		p += delta;
@@ -136,45 +144,24 @@ do_query(char *host, char *ns, int qtype, int qclass)
 		if (get_records(additional_cache, ntohs(dns->arcnt), p, buf, total, &delta) < 0)
 			goto fail;
 
+		fprintf(stdout, "\e[1;02m\e[3;32m\tADDITIONAL RESOURCE RECORDS\e[m\r\n");
+		if (print_answers(additional_cache, ntohs(dns->arcnt), buf, qtype) < 0)
+			goto fail;
+
 		p += delta;
 	}
+
+	free(buf);
+	buf = NULL;
 
 	return 0;
 
 	fail:
+
+	if (buf)
+	{
+		free(buf);
+		buf = NULL;
+	}
 	return -1;
-}
-
-ssize_t
-DoQuery(uc *host, uc *ns, _atomic_ q_type, _atomic_ q_class)
-{
-			/* Print the DNS Resource Records */
-
-	if (ntohs(dns->ancnt) > 0)
-	  {
-		printf("\e[1;02m\e[3;32m\tANSWER RESOURCE RECORDS\e[m\r\n");
-		if (GetAnswers(answers, ntohs(dns->ancnt), buf, q_type) == -1)
-			goto __err;
-	  }
-	if (ntohs(dns->nscnt) > 0)
-	  {
-		printf("\e[1;02m\e[3;32m\tAUTHORITATIVE RESOURCE RECORDS\e[m\r\n");
-		if (GetAnswers(auth, ntohs(dns->nscnt), buf, q_type) == -1)
-			goto __err;
-	  }
-	if (ntohs(dns->arcnt) > 0)
-	  {
-		printf("\e[1;02m\e[3;32m\tADDITIONAL RESOURCE RECORDS\e[m\r\n");
-		if (GetAnswers(addit, ntohs(dns->arcnt), buf, q_type) == -1)
-			goto __err;
-	  }
-
-	if (buf != NULL) free(buf);
-	return(0);
-
-	__err:
-	err = errno;
-	if (buf != NULL) free(buf);
-	errno = err;
-	return(-1);
 }
