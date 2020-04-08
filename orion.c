@@ -448,9 +448,14 @@ encode_name(char *qname, char *host, size_t *len)
 	int qidx = 0;
 	char *p;
 	char *q;
+	char tmpString[HOST_MAX];
 	size_t l = strlen((char *)host);
+
+	memcpy(tmpString, host, l);
+	tmpString[l++] = '.';
+	tmpString[l] = 0;
   
-	p = q = host;
+	p = q = tmpString;
   
 	while (1)
 	{
@@ -458,42 +463,47 @@ encode_name(char *qname, char *host, size_t *len)
 
 		if (!q)
 		{
-			q = (host + len);
-			qname[qidx++] = (uc)(q - p);
-			memcpy((char *)(qname + qidx), p, (q - p));
-			qidx += (q - p);
-			break;
+			errno = EPROTO;
 		}
 
 		qname[qidx++] = (uc)(q - p);
-		memcpy((char *)(qname + qidx), p, (q - p));
+		memcpy((void *)(qname + qidx), (void *)p, (q - p));
 		qidx += (q - p);
 		p = ++q;
+
+		if ((p - tmpString) >= l)
+			break;
 	}
 
+	qname[qidx] = 0;
 	*len = strlen(qname);
 	return 0;
 }
 
+#ifndef DNS_LABEL_OFFSET_BIAS
+# define DNS_LABEL_OFFSET_BIAS (0xc0 << 8)
+#endif
 static inline off_t __label_off(uc *ptr)
 {
 	return ((*ptr * 0x100) + *(ptr + 1) - DNS_LABEL_OFFSET_BIAS);
 }
 
+#define LABEL_JUMP_INDICATOR (unsigned char)0xc0
 int
-decode_name(char *cur_pos, char *in, buf_t *out, size_t *delta)
+decode_name(char *cur_pos, char *dataStart, buf_t *out, size_t *deltaPtr)
 {
-	assert(rcvd);
-	assert(buf);
-	assert(target);
+	assert(cur_pos);
+	assert(in);
+	assert(out);
 	assert(delta);
 
 	int i;
 	size_t len;
-	size_t __delta = 0;
+	size_t delta = 0;
 	off_t off;
 	char *p;
 	int jflag = 0;
+	unsigned char tokenLen;
 
 /*
  * E.g., (B == octet of data)
@@ -506,39 +516,40 @@ decode_name(char *cur_pos, char *in, buf_t *out, size_t *delta)
  */
 
 	buf_clear(out);
+	p = cur_pos;
 
-	for (p = cur_pos; *p != 0; ++p)
+	while (1)
 	{
-		if ((unsigned char)*p >= 0xc0)
+		tokenLen = (unsigned char)*p;
+
+		if (!tokenLen)
+			break;
+
+		if (tokenLen >= LABEL_JUMP_INDICATOR)
 		{
-			off = __label_off(p);
-			p = (in + off);
 			jflag = 1;
-			off = 0;
+
+			off = __label_off(p);
+			p = (dataStart + off);
+			continue;
 		}
 
-		buf_append_ex(out, p, 1);
+		if (out->data_len > 0)
+			buf_append_ex(out, ".", 1);
+
+		buf_append_ex(out, p, tokenLen);
+		p += tokenLen + 1;
 
 		if (!jflag)
-			++__delta;
+			++delta;
 	}
 
 	if (jflag)
-		p = (cur_pos + __delta + 1);
+		p = (cur_pos + delta + 1);
 
 	++p;
 
-/*
- * Replace the encoded label lengths with '.'
- */
-	buf_collapse(out, (off_t)0, (size_t)1);
-	for (i = 0; i < out->data_len; ++i)
-	{
-		if (!isascii(out->buf_head[i]))
-			out->buf_head[i] = '.';
-	}
-
-	*delta = (p - cur_pos);
+	*deltaPtr = (p - cur_pos);
 
 #if 0
 	for (p = (uc *)rcvd; *p != 0; ++p)
@@ -633,7 +644,7 @@ convert_to_ptr(char *name, char *host, size_t *qnamelen)
 
 	return 0;
 
-	fail:
+fail:
 	if (tmp)
 	{
 		free(tmp);
